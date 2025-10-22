@@ -1,0 +1,12 @@
+# .gitignore content
+.env
+__pycache__/
+*.pyc
+/app/uploads/
+/dbdata/
+# Python
+venv/
+.mypy_cache/
+.pytest_cache/
+# OS
+.DS_Store
