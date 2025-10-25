@@ -1,983 +1,312 @@
-# api.py - REST API for Admin Web App with Email Templates
-import os
-import json
-import hmac
-import hashlib
-from urllib.parse import unquote
-from datetime import datetime, timezone
-from typing import Optional
 import asyncpg
-from aiohttp import web
-import aiohttp_cors
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from typing import Optional, Dict, List, Any, Union
+import logging
+from datetime import datetime, date
 
-# Dependencies
-_pool: Optional[asyncpg.Pool] = None
-_bot = None
-_admin_ids = set()
-_run_matching = None
-_get_settings = None
-_set_schedule_days = None
-_set_schedule_time = None
-_can_run_now = None
-_log_run_start = None
-_log_run_finish = None
-BOT_TOKEN = ""
+logger = logging.getLogger(__name__)
 
+def _record_to_dict(record: Optional[asyncpg.Record]) -> Optional[Dict]:
+    return dict(record) if record else None
 
-def verify_telegram_web_app(init_data: str, bot_token: str) -> Optional[dict]:
+def _records_to_list_dicts(records: List[asyncpg.Record]) -> List[Dict]:
+    return [dict(record) for record in records]
+
+async def add_group(conn: asyncpg.Connection, name: str) -> Dict:
+    query = "INSERT INTO groups (name) VALUES ($1) RETURNING group_id, name"
     try:
-        params = dict(item.split('=', 1) for item in init_data.split('&'))
-        data_check_string = '\n'.join(
-            f"{k}={unquote(v)}" for k, v in sorted(params.items()) if k != 'hash'
-        )
-        secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
-        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-        
-        if calculated_hash != params.get('hash'):
-            return None
-        
-        user_data = json.loads(unquote(params.get('user', '{}')))
-        return user_data
-    except Exception as e:
-        print(f"Verification error: {e}")
-        return None
+        result = await conn.fetchrow(query, name)
+        return _record_to_dict(result)
+    except asyncpg.UniqueViolationError: raise
 
+async def get_groups(conn: asyncpg.Connection) -> List[Dict]:
+    query = "SELECT group_id, name FROM groups ORDER BY name"
+    results = await conn.fetch(query)
+    return _records_to_list_dicts(results)
 
-@web.middleware
-async def auth_middleware(request, handler):
-    if request.path in ['/health', '/']:
-        return await handler(request)
-    
-    if not request.path.startswith('/api/'):
-        return await handler(request)
-    
-    auth = request.headers.get('Authorization', '')
-    if not auth.startswith('tma '):
-        return web.json_response({'error': 'Unauthorized'}, status=401)
-    
-    init_data = auth[4:]
-    user = verify_telegram_web_app(init_data, BOT_TOKEN)
-    
-    if not user or user.get('id') not in _admin_ids:
-        return web.json_response({'error': 'Forbidden'}, status=403)
-    
-    request['user_id'] = user.get('id')
-    return await handler(request)
+async def delete_group(conn: asyncpg.Connection, group_id: int) -> bool:
+    query = "DELETE FROM groups WHERE group_id = $1 RETURNING group_id"
+    result = await conn.fetchval(query, group_id)
+    return result is not None
 
+async def get_group_by_id(conn: asyncpg.Connection, group_id: int) -> Optional[Dict]:
+    query = "SELECT group_id, name FROM groups WHERE group_id = $1"
+    result = await conn.fetchrow(query, group_id)
+    return _record_to_dict(result)
 
-async def health(request):
-    return web.json_response({'status': 'ok'})
+async def add_user(conn: asyncpg.Connection, user_data: Dict) -> Dict:
+    query = """
+    INSERT INTO users (telegram_id, username, first_name, last_name, role, approved)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (telegram_id) DO UPDATE SET
+        username = EXCLUDED.username, first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name
+    RETURNING user_id, telegram_id, username, first_name, last_name, role, approved;
+    """
+    result = await conn.fetchrow(
+        query, user_data['telegram_id'], user_data.get('username'),
+        user_data.get('first_name'), user_data.get('last_name'), 'pending', False
+    )
+    if not result: return await get_user(conn, user_data['telegram_id'])
+    return _record_to_dict(result)
 
+async def add_student(conn: asyncpg.Connection, user_id: int, group_id: Optional[int]):
+    query = """
+    INSERT INTO students (student_id, group_id, pending_group_id, group_change_requested_at)
+    VALUES ($1, $2, NULL, NULL) ON CONFLICT (student_id) DO NOTHING;
+    """
+    await conn.execute(query, user_id, group_id)
 
-async def get_stats(request):
-    total = await _pool.fetchval("SELECT COUNT(*) FROM users")
-    subscribed = await _pool.fetchval("SELECT COUNT(*) FROM users WHERE subscribed=TRUE")
-    mentors = await _pool.fetchval("SELECT COUNT(*) FROM users WHERE mentor_flag=TRUE")
-    pending = await _pool.fetchval("SELECT COUNT(*) FROM users WHERE status='pending'")
-    
-    segments = await _pool.fetch("""
-        SELECT segment, COUNT(*) as count FROM users 
-        WHERE segment IS NOT NULL GROUP BY segment ORDER BY count DESC
-    """)
-    
-    recent_pairs = await _pool.fetchval("""
-        SELECT COUNT(*) FROM pairings 
-        WHERE last_matched_at > NOW() - INTERVAL '7 days'
-    """)
-    
-    return web.json_response({
-        'total_users': total,
-        'subscribed': subscribed,
-        'mentors': mentors,
-        'pending_approvals': pending,
-        'recent_pairs': recent_pairs,
-        'segments': [{'name': r['segment'], 'count': r['count']} for r in segments]
-    })
+async def add_teacher(conn: asyncpg.Connection, user_id: int):
+    query = "INSERT INTO teachers (teacher_id) VALUES ($1) ON CONFLICT (teacher_id) DO NOTHING"
+    await conn.execute(query, user_id)
 
+async def get_user(conn: asyncpg.Connection, telegram_id: int) -> Optional[Dict]:
+    query = """
+    SELECT u.*, s.group_id, g.name AS group_name, s.pending_group_id, pg.name as pending_group_name,
+           s.group_change_requested_at, u.pending_first_name, u.pending_last_name, u.name_change_requested_at
+    FROM users u
+    LEFT JOIN students s ON u.user_id = s.student_id
+    LEFT JOIN groups g ON s.group_id = g.group_id
+    LEFT JOIN groups pg ON s.pending_group_id = pg.group_id
+    WHERE u.telegram_id = $1
+    """
+    result = await conn.fetchrow(query, telegram_id)
+    return _record_to_dict(result)
 
-async def get_schedule(request):
-    settings = await _get_settings()
-    ok, rem = await _can_run_now()
-    
-    return web.json_response({
-        'schedule_days': settings.get('schedule_days', []),
-        'schedule_time': settings.get('schedule_time', '09:00'),
-        'last_run_at': settings.get('last_run_at').isoformat() if settings.get('last_run_at') else None,
-        'can_run_now': ok,
-        'cooldown_minutes': int(rem.total_seconds() / 60) if rem else 0
-    })
+async def get_user_by_db_id(conn: asyncpg.Connection, user_id: int) -> Optional[Dict]:
+    query = """
+    SELECT u.*, s.group_id, g.name AS group_name, s.pending_group_id, pg.name as pending_group_name,
+           s.group_change_requested_at, u.pending_first_name, u.pending_last_name, u.name_change_requested_at
+    FROM users u
+    LEFT JOIN students s ON u.user_id = s.student_id
+    LEFT JOIN groups g ON s.group_id = g.group_id
+    LEFT JOIN groups pg ON s.pending_group_id = pg.group_id
+    WHERE u.user_id = $1
+    """
+    result = await conn.fetchrow(query, user_id)
+    return _record_to_dict(result)
 
+async def set_student_group(conn: asyncpg.Connection, student_user_id: int, group_id: Optional[int]) -> bool:
+    query = "UPDATE students SET group_id = $1, pending_group_id = NULL, group_change_requested_at = NULL WHERE student_id = $2 RETURNING student_id;"
+    result = await conn.fetchval(query, group_id, student_user_id)
+    return result is not None
 
-async def update_schedule(request):
-    data = await request.json()
-    if 'schedule_days' in data:
-        await _set_schedule_days(data['schedule_days'])
-    if 'schedule_time' in data:
-        await _set_schedule_time(data['schedule_time'])
-    return web.json_response({'success': True})
+async def request_group_change(conn: asyncpg.Connection, student_user_id: int, new_group_id: int) -> bool:
+    query = "UPDATE students SET pending_group_id = $1, group_change_requested_at = CURRENT_TIMESTAMP WHERE student_id = $2 RETURNING student_id;"
+    result = await conn.fetchval(query, new_group_id, student_user_id)
+    return result is not None
 
+async def get_pending_group_changes(conn: asyncpg.Connection) -> List[Dict]:
+    query = """
+    SELECT u.user_id, u.first_name, u.last_name, s.group_id, cg.name AS current_group_name,
+           s.pending_group_id, pg.name AS pending_group_name, s.group_change_requested_at
+    FROM users u JOIN students s ON u.user_id = s.student_id
+    LEFT JOIN groups cg ON s.group_id = cg.group_id
+    JOIN groups pg ON s.pending_group_id = pg.group_id
+    WHERE s.pending_group_id IS NOT NULL ORDER BY s.group_change_requested_at ASC;
+    """
+    return _records_to_list_dicts(await conn.fetch(query))
 
-async def run_matching_now(request):
-    ok, rem = await _can_run_now()
-    if not ok:
-        return web.json_response({'error': f'Cooldown: {int(rem.total_seconds()/60)} min'}, status=429)
-    
-    user_id = request['user_id']
-    run_id = await _log_run_start('manual', user_id)
-    
-    try:
-        count = await _run_matching()
-        await _log_run_finish(run_id, count, ok=True)
-        return web.json_response({'success': True, 'pairs': count})
-    except Exception as e:
-        await _log_run_finish(run_id, 0, ok=False, error_text=str(e))
-        return web.json_response({'error': str(e)}, status=500)
+async def approve_group_change(conn: asyncpg.Connection, student_user_id: int) -> bool:
+    async with conn.transaction():
+        pid = await conn.fetchval("SELECT pending_group_id FROM students WHERE student_id = $1 AND pending_group_id IS NOT NULL FOR UPDATE", student_user_id)
+        if pid is None: return False
+        status = await conn.execute("UPDATE students SET group_id = $1, pending_group_id = NULL, group_change_requested_at = NULL WHERE student_id = $2;", pid, student_user_id)
+        return status == 'UPDATE 1'
 
+async def reject_group_change(conn: asyncpg.Connection, student_user_id: int) -> bool:
+    query = "UPDATE students SET pending_group_id = NULL, group_change_requested_at = NULL WHERE student_id = $1 AND pending_group_id IS NOT NULL RETURNING student_id;"
+    result = await conn.fetchval(query, student_user_id)
+    return result is not None
 
-async def get_run_history(request):
-    limit = int(request.query.get('limit', 20))
-    rows = await _pool.fetch("""
-        SELECT id, run_type, started_at, finished_at, pairs_count, status, error_text, triggered_by
-        FROM run_logs ORDER BY started_at DESC LIMIT $1
-    """, limit)
-    
-    return web.json_response([{
-        'id': r['id'], 'run_type': r['run_type'],
-        'started_at': r['started_at'].isoformat(),
-        'finished_at': r['finished_at'].isoformat() if r['finished_at'] else None,
-        'pairs_count': r['pairs_count'], 'status': r['status'],
-        'error_text': r['error_text'], 'triggered_by': r['triggered_by']
-    } for r in rows])
+async def request_name_change(conn: asyncpg.Connection, user_id: int, first_name: str, last_name: str) -> bool:
+    query = "UPDATE users SET pending_first_name = $1, pending_last_name = $2, name_change_requested_at = CURRENT_TIMESTAMP WHERE user_id = $3 RETURNING user_id;"
+    result = await conn.fetchval(query, first_name, last_name, user_id)
+    return result is not None
 
+async def get_pending_name_changes(conn: asyncpg.Connection) -> List[Dict]:
+    query = """
+    SELECT user_id, first_name AS current_first_name, last_name AS current_last_name,
+           pending_first_name, pending_last_name, name_change_requested_at
+    FROM users WHERE pending_first_name IS NOT NULL ORDER BY name_change_requested_at ASC;
+    """
+    return _records_to_list_dicts(await conn.fetch(query))
 
-async def get_pending_approvals(request):
-    rows = await _pool.fetch("""
-        SELECT user_id, full_name, email, segment, affiliation, about, created_at
-        FROM users WHERE status='pending' ORDER BY created_at DESC LIMIT 50
-    """)
-    
-    return web.json_response([{
-        'user_id': r['user_id'], 'full_name': r['full_name'],
-        'email': r['email'], 'segment': r['segment'],
-        'affiliation': r['affiliation'], 'about': r['about'],
-        'created_at': r['created_at'].isoformat()
-    } for r in rows])
+async def approve_name_change(conn: asyncpg.Connection, user_id: int) -> bool:
+     async with conn.transaction():
+        pending_names = await conn.fetchrow("SELECT pending_first_name, pending_last_name FROM users WHERE user_id = $1 AND pending_first_name IS NOT NULL FOR UPDATE", user_id)
+        if not pending_names: return False
+        status = await conn.execute("UPDATE users SET first_name = $1, last_name = $2, pending_first_name = NULL, pending_last_name = NULL, name_change_requested_at = NULL WHERE user_id = $3;",
+                                    pending_names['pending_first_name'], pending_names['pending_last_name'], user_id)
+        return status == 'UPDATE 1'
 
+async def reject_name_change(conn: asyncpg.Connection, user_id: int) -> bool:
+    query = "UPDATE users SET pending_first_name = NULL, pending_last_name = NULL, name_change_requested_at = NULL WHERE user_id = $1 AND pending_first_name IS NOT NULL RETURNING user_id;"
+    result = await conn.fetchval(query, user_id)
+    return result is not None
 
-async def approve_user(request):
-    data = await request.json()
-    user_id = data.get('user_id')
-    admin_id = request['user_id']
-    
-    await _pool.execute("UPDATE users SET status='approved', updated_at=NOW() WHERE user_id=$1", user_id)
-    await _pool.execute("INSERT INTO approvals_log(user_id, action, by_admin) VALUES($1,'approved',$2)", user_id, admin_id)
-    
-    try:
-        await _bot.send_message(user_id, "🎉 Your profile has been *approved*. Welcome!")
-    except:
-        pass
-    
-    return web.json_response({'success': True})
+async def update_user_name(conn: asyncpg.Connection, user_id: int, first_name: str, last_name: str) -> bool:
+    # Используется только при одобрении запроса
+    query = "UPDATE users SET first_name = $1, last_name = $2 WHERE user_id = $3"
+    status = await conn.execute(query, first_name, last_name, user_id)
+    return status == 'UPDATE 1'
 
+async def add_assignment_and_notify_bot(conn: asyncpg.Connection, group_id: int, title: str, created_by: int, description: Optional[str]=None, due_date: Optional[datetime]=None, file_id: Optional[str]=None, file_type: Optional[str]=None) -> Dict:
+    query = """
+    INSERT INTO assignments (group_id, title, description, due_date, created_by, file_id, file_type)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING assignment_id, group_id, title, description, due_date, file_id, file_type;
+    """
+    result = await conn.fetchrow(query, group_id, title, description, due_date, created_by, file_id, file_type)
+    return _record_to_dict(result)
 
-async def reject_user(request):
-    data = await request.json()
-    user_id = data.get('user_id')
-    admin_id = request['user_id']
-    
-    await _pool.execute("UPDATE users SET status='rejected', updated_at=NOW() WHERE user_id=$1", user_id)
-    await _pool.execute("INSERT INTO approvals_log(user_id, action, by_admin) VALUES($1,'rejected',$2)", user_id, admin_id)
-    
-    try:
-        await _bot.send_message(user_id, "⚠️ Your profile was *rejected*. You can /start again.")
-    except:
-        pass
-    
-    return web.json_response({'success': True})
+async def get_assignment(conn: asyncpg.Connection, assignment_id: int) -> Optional[Dict]:
+    query = "SELECT *, (due_date < CURRENT_TIMESTAMP) as is_deadline_passed FROM assignments WHERE assignment_id = $1"
+    result = await conn.fetchrow(query, assignment_id)
+    return _record_to_dict(result)
 
+async def get_assignments_for_group(conn: asyncpg.Connection, group_id: int) -> List[Dict]:
+    query = "SELECT assignment_id, title, due_date, accepting_submissions FROM assignments WHERE group_id = $1 ORDER BY creation_date DESC"
+    results = await conn.fetch(query, group_id)
+    return _records_to_list_dicts(results)
 
-async def get_subscribers(request):
-    limit = int(request.query.get('limit', 50))
-    rows = await _pool.fetch("""
-        SELECT user_id, full_name, segment, affiliation, rc_frequency,
-               rc_pref_tue, rc_pref_universities, rc_pref_industry
-        FROM users WHERE subscribed=TRUE
-        ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT $1
-    """, limit)
-    
-    return web.json_response([{
-        'user_id': r['user_id'], 'full_name': r['full_name'],
-        'segment': r['segment'], 'affiliation': r['affiliation'],
-        'rc_frequency': r['rc_frequency'],
-        'preferences': {'tue': r['rc_pref_tue'], 'universities': r['rc_pref_universities'], 'industry': r['rc_pref_industry']}
-    } for r in rows])
+async def toggle_accept_submissions(conn: asyncpg.Connection, assignment_id: int, accept: bool) -> Optional[Dict]:
+    query = "UPDATE assignments SET accepting_submissions = $1 WHERE assignment_id = $2 RETURNING assignment_id, accepting_submissions;"
+    result = await conn.fetchrow(query, accept, assignment_id)
+    return _record_to_dict(result)
 
+async def add_submission(conn: asyncpg.Connection, assignment_id: int, student_user_id: int, file_id: str) -> Dict:
+    async with conn.transaction():
+        assignment = await conn.fetchrow("SELECT due_date FROM assignments WHERE assignment_id = $1 FOR UPDATE", assignment_id)
+        due_date = assignment['due_date'] if assignment else None
+        is_late = due_date is not None and datetime.now(due_date.tzinfo) > due_date
 
-async def pause_user_subscription(request):
-    data = await request.json()
-    user_id = data.get('user_id')
-    await _pool.execute("UPDATE users SET subscribed=FALSE, updated_at=NOW() WHERE user_id=$1", user_id)
-    
-    try:
-        await _bot.send_message(user_id, "⏸ Paused from Random Coffee by admin.")
-    except:
-        pass
-    
-    return web.json_response({'success': True})
+        query = """
+        INSERT INTO submissions (assignment_id, student_id, file_id, submission_date, is_late, submitted, grade, score1, score2, graded_by, grade_date, teacher_comment)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, TRUE, NULL, NULL, NULL, NULL, NULL, NULL)
+        ON CONFLICT (assignment_id, student_id) DO UPDATE SET
+            file_id = EXCLUDED.file_id, submission_date = CURRENT_TIMESTAMP, is_late = EXCLUDED.is_late, submitted = TRUE,
+            grade = NULL, score1 = NULL, score2 = NULL, graded_by = NULL, grade_date = NULL, teacher_comment = NULL
+        RETURNING submission_id, assignment_id, student_id, submission_date, is_late;
+        """
+        result = await conn.fetchrow(query, assignment_id, student_user_id, file_id, is_late)
+        return _record_to_dict(result)
 
+async def get_submissions_for_assignment(conn: asyncpg.Connection, assignment_id: int) -> List[Dict]:
+    query = """
+    SELECT s.*, u.first_name AS student_first_name, u.last_name AS student_last_name
+    FROM submissions s JOIN users u ON s.student_id = u.user_id
+    WHERE s.assignment_id = $1 ORDER BY s.submission_date DESC;
+    """
+    return _records_to_list_dicts(await conn.fetch(query, assignment_id))
 
-async def get_events(request):
-    limit = int(request.query.get('limit', 50))
-    event_type = request.query.get('type')  # 'event' or 'social'
-    
-    where_clause = "WHERE 1=1"
-    if event_type:
-        where_clause += f" AND event_type = '{event_type}'"
-    
-    rows = await _pool.fetch(f"""
-        SELECT id, title, description, location, starts_at, ends_at,
-               capacity, rsvp_open_at, rsvp_close_at, status, event_type,
-               photo_url, registration_url, broadcasted_at
-        FROM events {where_clause}
-        ORDER BY starts_at DESC NULLS LAST, id DESC 
-        LIMIT $1
-    """, limit)
-    
-    return web.json_response([{
-        'id': r['id'], 
-        'title': r['title'], 
-        'description': r['description'],
-        'location': r['location'],
-        'starts_at': r['starts_at'].isoformat() if r['starts_at'] else None,
-        'ends_at': r['ends_at'].isoformat() if r['ends_at'] else None,
-        'capacity': r['capacity'],
-        'rsvp_open_at': r['rsvp_open_at'].isoformat() if r['rsvp_open_at'] else None,
-        'rsvp_close_at': r['rsvp_close_at'].isoformat() if r['rsvp_close_at'] else None,
-        'status': r['status'], 
-        'event_type': r['event_type'],
-        'photo_url': r['photo_url'],
-        'registration_url': r['registration_url'],
-        'broadcasted': r['broadcasted_at'] is not None
-    } for r in rows])
+async def update_submission_grade(conn: asyncpg.Connection, submission_id: int, grade: Optional[int], teacher_user_id: int, comment: Optional[str]=None, score1: Optional[int]=None, score2: Optional[int]=None) -> Optional[Dict]:
+    query = """
+    UPDATE submissions SET grade = $1, score1 = $2, score2 = $3, graded_by = $4, teacher_comment = $5,
+           grade_date = CASE WHEN $1 IS NOT NULL THEN CURRENT_TIMESTAMP ELSE NULL END
+    WHERE submission_id = $6 RETURNING submission_id, grade, score1, score2, grade_date;
+    """
+    result = await conn.fetchrow(query, grade, score1, score2, teacher_user_id, comment, submission_id)
+    return _record_to_dict(result)
 
-async def upload_image(request):
-    """Upload image and return URL"""
-    try:
-        reader = await request.multipart()
-        field = await reader.next()
-        
-        if field.name != 'image':
-            return web.json_response({'error': 'No image field'}, status=400)
-        
-        filename = field.filename
-        if not filename:
-            return web.json_response({'error': 'No filename'}, status=400)
-        
-        # Validate file extension
-        ext = filename.split('.')[-1].lower()
-        if ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
-            return web.json_response({'error': 'Invalid file type'}, status=400)
-        
-        # Generate unique filename
-        import uuid
-        unique_filename = f"{uuid.uuid4()}.{ext}"
-        
-        # Create uploads directory if not exists
-        upload_dir = '/app/uploads'
-        os.makedirs(upload_dir, exist_ok=True)
-        
-        # Save file
-        filepath = os.path.join(upload_dir, unique_filename)
-        with open(filepath, 'wb') as f:
-            while True:
-                chunk = await field.read_chunk()
-                if not chunk:
-                    break
-                f.write(chunk)
-        
-        # Return URL (adjust based on your server setup)
-        url = f"{request.scheme}://{request.host}/uploads/{unique_filename}"
-        return web.json_response({'success': True, 'url': url})
-        
-    except Exception as e:
-        print(f"Error uploading image: {e}")
-        return web.json_response({'error': str(e)}, status=500)
+async def get_attendance(conn: asyncpg.Connection, group_id: int, attendance_date: date) -> List[Dict]:
+    query = "SELECT student_id, is_present FROM attendance WHERE group_id = $1 AND attendance_date = $2;"
+    return _records_to_list_dicts(await conn.fetch(query, group_id, attendance_date))
 
+async def save_attendance(conn: asyncpg.Connection, group_id: int, attendance_date: date, attendance_list: List[Dict], marked_by: int):
+    query = """
+    INSERT INTO attendance (group_id, student_id, attendance_date, is_present, marked_by, marked_at)
+    VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+    ON CONFLICT (group_id, student_id, attendance_date) DO UPDATE SET
+        is_present = EXCLUDED.is_present, marked_by = EXCLUDED.marked_by, marked_at = CURRENT_TIMESTAMP;
+    """
+    await conn.executemany(query, [
+        (group_id, att['student_id'], attendance_date, att['is_present'], marked_by)
+        for att in attendance_list
+    ])
 
-async def serve_upload(request):
-    """Serve uploaded files"""
-    filename = request.match_info['filename']
-    filepath = f'/app/uploads/{filename}'
-    
-    if not os.path.exists(filepath):
-        return web.Response(status=404)
-    
-    return web.FileResponse(filepath)
+async def add_question(conn: asyncpg.Connection, student_id: int, group_id: Optional[int], question_text: str) -> Dict:
+    query = """
+    INSERT INTO questions (student_id, group_id, question_text) VALUES ($1, $2, $3)
+    RETURNING question_id;
+    """
+    result = await conn.fetchrow(query, student_id, group_id, question_text)
+    return _record_to_dict(result)
 
-async def create_event(request):
-    try:
-        data = await request.json()
-        admin_id = request['user_id']
-        
-        # Validate required fields
-        if not data.get('title'):
-            return web.json_response({'error': 'Title is required'}, status=400)
-        
-        # Parse datetime strings if provided
-        starts_at = data.get('starts_at')
-        ends_at = data.get('ends_at')
-        rsvp_open_at = data.get('rsvp_open_at')
-        rsvp_close_at = data.get('rsvp_close_at')
-        
-        # Convert to datetime objects if strings are provided
-        if starts_at and isinstance(starts_at, str):
-            try:
-                starts_at = datetime.fromisoformat(starts_at.replace('Z', '+00:00'))
-            except:
-                starts_at = None
-        
-        if ends_at and isinstance(ends_at, str):
-            try:
-                ends_at = datetime.fromisoformat(ends_at.replace('Z', '+00:00'))
-            except:
-                ends_at = None
-        
-        if rsvp_open_at and isinstance(rsvp_open_at, str):
-            try:
-                rsvp_open_at = datetime.fromisoformat(rsvp_open_at.replace('Z', '+00:00'))
-            except:
-                rsvp_open_at = None
-        
-        if rsvp_close_at and isinstance(rsvp_close_at, str):
-            try:
-                rsvp_close_at = datetime.fromisoformat(rsvp_close_at.replace('Z', '+00:00'))
-            except:
-                rsvp_close_at = None
-        
-        event_id = await _pool.fetchval("""
-            INSERT INTO events(
-                title, description, location, starts_at, ends_at,
-                capacity, rsvp_open_at, rsvp_close_at, status, event_type,
-                photo_url, registration_url, created_by
-            )
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-            RETURNING id
-        """, 
-            data.get('title'), 
-            data.get('description'), 
-            data.get('location'),
-            starts_at, 
-            ends_at, 
-            data.get('capacity'),
-            rsvp_open_at, 
-            rsvp_close_at,
-            data.get('status', 'draft'),
-            data.get('event_type', 'event'),
-            data.get('photo_url'),
-            data.get('registration_url'),
-            admin_id
-        )
-        
-        return web.json_response({'success': True, 'id': event_id})
-        
-    except Exception as e:
-        print(f"Error creating event: {e}")
-        import traceback
-        traceback.print_exc()
-        return web.json_response({'error': str(e)}, status=500)
+async def get_questions(conn: asyncpg.Connection, answered: Optional[bool]=False) -> List[Dict]:
+    base_query = """
+    SELECT q.*, s.first_name AS student_first_name, s.last_name AS student_last_name, g.name AS group_name,
+           a.first_name AS answerer_first_name, a.last_name AS answerer_last_name, s.telegram_id AS student_telegram_id
+    FROM questions q JOIN users s ON q.student_id = s.user_id
+    LEFT JOIN groups g ON q.group_id = g.group_id
+    LEFT JOIN users a ON q.answered_by = a.user_id
+    """
+    conditions = []
+    params = []
+    if answered is False: conditions.append("q.answered_at IS NULL")
+    elif answered is True: conditions.append("q.answered_at IS NOT NULL")
 
-async def delete_event(request):
-    """Delete event by ID"""
-    try:
-        event_id = int(request.match_info['id'])
-        
-        # Check if event exists
-        exists = await _pool.fetchval(
-            "SELECT id FROM events WHERE id=$1",
-            event_id
-        )
-        
-        if not exists:
-            return web.json_response({'error': 'Event not found'}, status=404)
-        
-        # Delete event (CASCADE will delete related RSVPs automatically)
-        await _pool.execute("DELETE FROM events WHERE id=$1", event_id)
-        
-        return web.json_response({'success': True})
-        
-    except ValueError:
-        return web.json_response({'error': 'Invalid event ID'}, status=400)
-    except Exception as e:
-        print(f"Error deleting event: {e}")
-        return web.json_response({'error': str(e)}, status=500)
+    if conditions: base_query += " WHERE " + " AND ".join(conditions)
+    base_query += " ORDER BY q.asked_at DESC;"
 
+    return _records_to_list_dicts(await conn.fetch(base_query, *params))
 
-async def update_event(request):
-    event_id = int(request.match_info['id'])
-    data = await request.json()
-    set_clauses, values, idx = [], [], 1
-    
-    for field in ['title', 'description', 'location', 'starts_at', 'ends_at', 
-                  'capacity', 'rsvp_open_at', 'rsvp_close_at', 'status', 'event_type',
-                  'photo_url', 'registration_url']:
-        if field in data:
-            set_clauses.append(f"{field}=${idx}")
-            values.append(data[field])
-            idx += 1
-    
-    if set_clauses:
-        set_clauses.append("updated_at=NOW()")
-        values.append(event_id)
-        await _pool.execute(
-            f"UPDATE events SET {', '.join(set_clauses)} WHERE id=${idx}", 
-            *values
-        )
-    
-    return web.json_response({'success': True})
+async def add_answer(conn: asyncpg.Connection, question_id: int, answer_text: str, teacher_user_id: int) -> Optional[Dict]:
+    query = """
+    UPDATE questions SET answer_text = $1, answered_by = $2, answered_at = CURRENT_TIMESTAMP
+    WHERE question_id = $3 AND answered_at IS NULL
+    RETURNING question_id, student_id, question_text, answer_text;
+    """
+    result = await conn.fetchrow(query, answer_text, teacher_user_id, question_id)
+    return _record_to_dict(result)
 
+async def get_users(conn: asyncpg.Connection, approved: Optional[bool]=None, role: Optional[str]=None, group_id: Optional[int]=None) -> List[Dict]:
+    base_query = """
+    SELECT u.*, s.group_id, g.name AS group_name, s.pending_group_id, pg.name as pending_group_name,
+           s.group_change_requested_at, u.pending_first_name, u.pending_last_name, u.name_change_requested_at
+    FROM users u LEFT JOIN students s ON u.user_id = s.student_id
+    LEFT JOIN groups g ON s.group_id = g.group_id LEFT JOIN groups pg ON s.pending_group_id = pg.group_id
+    """
+    conditions = []; params = []; idx = 1
+    if approved is not None: conditions.append(f"u.approved = ${idx}"); params.append(approved); idx += 1
+    if role is not None: conditions.append(f"u.role = ${idx}"); params.append(role); idx += 1
+    if group_id is not None: conditions.append(f"s.group_id = ${idx}"); params.append(group_id); idx += 1
+    if conditions: query = f"{base_query} WHERE {' AND '.join(conditions)}"
+    else: query = base_query
+    query += " ORDER BY u.last_name, u.first_name;"
+    return _records_to_list_dicts(await conn.fetch(query, *params))
 
-async def broadcast_event(request):
-    event_id = int(request.match_info['id'])
-    event = await _pool.fetchrow("SELECT * FROM events WHERE id=$1", event_id)
-    if not event:
-        return web.json_response({'error': 'Not found'}, status=404)
-    
-    if event['status'] != 'published':
-        await _pool.execute("UPDATE events SET status='published' WHERE id=$1", event_id)
-    
-    # Определить целевую аудиторию
-    is_social = event['event_type'] == 'social'
-    
-    if is_social:
-        # Только подписчики на socials
-        users = await _pool.fetch("""
-            SELECT user_id, communication_mode FROM users
-            WHERE socials_opt_in = TRUE
-              AND COALESCE(notif_socials, TRUE) = TRUE
-              AND COALESCE(communication_mode,'email+telegram') IN ('email+telegram', 'telegram_only')
-              AND COALESCE(status,'approved') = 'approved'
-        """)
-    else:
-        # Все пользователи с включенными уведомлениями о событиях
-        users = await _pool.fetch("""
-            SELECT user_id, communication_mode FROM users
-            WHERE COALESCE(notif_events,TRUE) = TRUE
-              AND COALESCE(communication_mode,'email+telegram') IN ('email+telegram', 'telegram_only')
-              AND COALESCE(status,'approved') = 'approved'
-        """)
-    
-    def fmt(v): 
-        return v.strftime("%B %d, %Y at %H:%M") if v else "TBA"
-    
-    icon = "💥" if is_social else "🎉"
-    text = f"{icon} *New {'Social' if is_social else 'Event'}:* {event['title']}\n\n"
-    
-    if event['description']:
-        text += f"{event['description']}\n\n"
-    
-    text += f"📍 *Location:* {event['location'] or '—'}\n"
-    text += f"🗓 *When:* {fmt(event['starts_at'])}\n"
-    
-    if event['capacity']:
-        text += f"👥 *Capacity:* {event['capacity']} spots\n"
-    
-    # Кнопка регистрации
-    kb = None
-    if event.get('registration_url'):
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📝 Register", url=event['registration_url'])]
-        ])
-    
-    sent = 0
-    for u in users:
-        try:
-            if event.get('photo_url'):
-                try:
-                    await _bot.send_photo(
-                        u['user_id'], 
-                        photo=event['photo_url'],
-                        caption=text,
-                        parse_mode='Markdown',
-                        reply_markup=kb
-                    )
-                except:
-                    # Fallback без фото
-                    await _bot.send_message(u['user_id'], text, parse_mode='Markdown', reply_markup=kb)
-            else:
-                await _bot.send_message(u['user_id'], text, parse_mode='Markdown', reply_markup=kb)
-            sent += 1
-        except Exception as e:
-            print(f"Failed to send to {u['user_id']}: {e}")
-    
-    await _pool.execute("UPDATE events SET broadcasted_at=NOW() WHERE id=$1", event_id)
-    return web.json_response({'success': True, 'sent_to': sent})
+async def set_user_approved(conn: asyncpg.Connection, user_id: int, status: bool) -> Optional[Dict]:
+    query = "UPDATE users SET approved = $1 WHERE user_id = $2 RETURNING user_id, approved;"
+    result = await conn.fetchrow(query, status, user_id)
+    return _record_to_dict(result)
 
-async def send_broadcast(request):
-    data = await request.json()
-    admin_id = request['user_id']
-    body = data.get('body')
-    filters = data.get('filters', {})
-    
-    where = ["COALESCE(communication_mode,'email+telegram') IN ('email+telegram', 'telegram_only')",
-             "COALESCE(notif_announcements,TRUE)=TRUE", "COALESCE(status,'approved')='approved'"]
-    args = []
-    
-    if filters.get('segments'):
-        args.append(filters['segments'])
-        where.append(f"segment = ANY(${len(args)})")
-    
-    if filters.get('affiliations'):
-        args.append(filters['affiliations'])
-        where.append(f"affiliation = ANY(${len(args)})")
-    
-    users = await _pool.fetch(f"SELECT user_id FROM users WHERE {' AND '.join(where)}", *args)
-    
-    sent = 0
-    for u in users:
-        try:
-            await _bot.send_message(u['user_id'], body, parse_mode='Markdown')
-            sent += 1
-        except:
-            pass
-    
-    await _pool.execute("""
-        INSERT INTO broadcasts(title, body, segment_filter, affiliation_filter, created_by, sent_to)
-        VALUES($1,$2,$3,$4,$5,$6)
-    """, body[:50], body, filters.get('segments'), filters.get('affiliations'), admin_id, sent)
-    
-    return web.json_response({'success': True, 'sent_to': sent})
+async def set_user_role(conn: asyncpg.Connection, user_id: int, role: str) -> Optional[Dict]:
+    allowed = ('student', 'teacher', 'pending')
+    if role not in allowed: raise ValueError(f"Bad role: {role}")
+    async with conn.transaction():
+        res = await conn.fetchrow("UPDATE users SET role = $1 WHERE user_id = $2 RETURNING user_id, role;", role, user_id)
+        if not res: return None
+        if role == 'student':
+            await conn.execute("DELETE FROM teachers WHERE teacher_id = $1", user_id)
+            await conn.execute("INSERT INTO students (student_id) VALUES ($1) ON CONFLICT DO NOTHING", user_id)
+        elif role == 'teacher':
+            await conn.execute("DELETE FROM students WHERE student_id = $1", user_id)
+            await conn.execute("INSERT INTO teachers (teacher_id) VALUES ($1) ON CONFLICT DO NOTHING", user_id)
+        else:
+            await conn.execute("DELETE FROM students WHERE student_id = $1", user_id)
+            await conn.execute("DELETE FROM teachers WHERE teacher_id = $1", user_id)
+    return _record_to_dict(res)
 
+async def get_teachers_ids(db_pool: asyncpg.Pool) -> List[int]:
+    query = "SELECT u.telegram_id FROM users u JOIN teachers t ON u.user_id = t.teacher_id WHERE u.approved = TRUE;"
+    async with db_pool.acquire() as conn:
+        results = await conn.fetch(query)
+    return [r['telegram_id'] for r in results]
 
-async def get_mentors(request):
-    """Получить всех менторов"""
-    rows = await _pool.fetch("""
-        SELECT u.user_id, u.full_name, u.email, u.username, u.segment, u.affiliation, u.about,
-               m.tags, m.monthly_avail
-        FROM users u
-        LEFT JOIN mentorship_mentors m ON u.user_id = m.user_id
-        WHERE u.mentor_flag = TRUE AND u.status = 'approved'
-        ORDER BY u.full_name
-    """)
-    
-    return web.json_response([{
-        'user_id': r['user_id'],
-        'full_name': r['full_name'],
-        'email': r['email'],
-        'username': r['username'],
-        'segment': r['segment'],
-        'affiliation': r['affiliation'],
-        'about': r['about'],
-        'tags': r['tags'] or [],
-        'monthly_avail': r['monthly_avail']
-    } for r in rows])
-
-
-async def get_mentees(request):
-    """Получить всех ментиев"""
-    rows = await _pool.fetch("""
-        SELECT u.user_id, u.full_name, u.email, u.username, u.segment, u.affiliation, u.about,
-               m.interests, m.pref, m.availability_window,
-               mm.mentor_id, mentor.full_name as mentor_name
-        FROM users u
-        LEFT JOIN mentorship_mentees m ON u.user_id = m.user_id
-        LEFT JOIN mentorship_matches mm ON u.user_id = mm.mentee_id AND mm.active = TRUE
-        LEFT JOIN users mentor ON mm.mentor_id = mentor.user_id
-        WHERE u.status = 'approved'
-          AND (m.user_id IS NOT NULL OR EXISTS (
-              SELECT 1 FROM mentorship_matches WHERE mentee_id = u.user_id
-          ))
-        ORDER BY u.full_name
-    """)
-    
-    return web.json_response([{
-        'user_id': r['user_id'],
-        'full_name': r['full_name'],
-        'email': r['email'],
-        'username': r['username'],
-        'segment': r['segment'],
-        'affiliation': r['affiliation'],
-        'about': r['about'],
-        'interests': r['interests'] or [],
-        'pref': r['pref'],
-        'availability_window': r['availability_window'],
-        'has_mentor': r['mentor_id'] is not None,
-        'mentor_id': r['mentor_id'],
-        'mentor_name': r['mentor_name']
-    } for r in rows])
-
-
-async def assign_mentor(request):
-    """Назначить ментора менти с использованием email templates"""
-    from email_sender import send_templated_email, create_mentorship_email, send_email
-    
-    data = await request.json()
-    mentor_id = data.get('mentor_id')
-    mentee_id = data.get('mentee_id')
-    
-    if not mentor_id or not mentee_id:
-        return web.json_response({'error': 'Missing IDs'}, status=400)
-    
-    try:
-        # Получить данные ментора и менти
-        mentor = await _pool.fetchrow("SELECT * FROM users WHERE user_id=$1", mentor_id)
-        mentee = await _pool.fetchrow("SELECT * FROM users WHERE user_id=$1", mentee_id)
-        
-        if not mentor or not mentee:
-            return web.json_response({'error': 'User not found'}, status=404)
-        
-        # Создать match
-        await _pool.execute("""
-            INSERT INTO mentorship_matches(mentor_id, mentee_id, active, matched_at)
-            VALUES($1, $2, TRUE, NOW())
-            ON CONFLICT (mentor_id, mentee_id) 
-            DO UPDATE SET active=TRUE, matched_at=NOW()
-        """, mentor_id, mentee_id)
-        
-        def fmt_contact(u):
-            parts = []
-            if u['email']:
-                parts.append(f"📧 {u['email']}")
-            if u['username']:
-                parts.append(f"💬 @{u['username']}")
-            return "\n".join(parts) if parts else "No contact info"
-        
-        def telegram_contact(u):
-            return f"@{u['username']}" if u['username'] else "Not provided"
-        
-        # === Отправка ментору ===
-        comm_mode_mentor = mentor.get('communication_mode') or 'email+telegram'
-        
-        # Telegram для ментора
-        if comm_mode_mentor in ['telegram_only', 'email+telegram']:
-            mentor_tg_text = (
-                "🎓 *Mentorship Match Assigned*\n\n"
-                f"You have been assigned as a mentor to:\n\n"
-                f"👤 *Name*: {mentee['full_name']}\n"
-                f"🎓 *Segment*: {mentee.get('segment') or '—'}\n"
-                f"🏫 *Affiliation*: {mentee.get('affiliation') or '—'}\n\n"
-                f"📝 *About*:\n{mentee.get('about') or '—'}\n\n"
-                f"📲 *Contact*:\n{fmt_contact(mentee)}\n\n"
-                f"*Next Steps:*\n"
-                f"• Reach out to schedule your first mentoring session\n"
-                f"• Aim for monthly calls throughout the program\n"
-                f"• Focus on career development in photonics\n\n"
-                f"Program runs through May 31, 2025."
-            )
-            try:
-                await _bot.send_message(mentor_id, mentor_tg_text, parse_mode='Markdown')
-            except Exception as e:
-                print(f"Failed to notify mentor via Telegram: {e}")
-        
-        # Email для ментора (используем template из БД)
-        if comm_mode_mentor in ['email_only', 'email+telegram'] and mentor.get('email'):
-            try:
-                # Переменные для шаблона
-                variables = {
-                    'user_name': mentor['full_name'],
-                    'user_role_title': "You've Been Assigned a Mentee",
-                    'match_emoji': '👨‍🎓',
-                    'match_role': 'Mentee',
-                    'match_name': mentee['full_name'],
-                    'match_segment': mentee.get('segment') or 'Not specified',
-                    'match_affiliation': mentee.get('affiliation') or 'Not specified',
-                    'match_about': mentee.get('about') or 'No information provided',
-                    'match_email': mentee.get('email') or 'Not provided',
-                    'match_telegram': telegram_contact(mentee),
-                    'next_steps': '• Reach out to schedule your first mentoring session<br>• Aim for monthly calls throughout the program<br>• Focus on career development in photonics'
-                }
-                
-                # Пытаемся использовать шаблон из БД
-                success = await send_templated_email(
-                    _pool,
-                    'mentorship_match',
-                    mentor['email'],
-                    variables
-                )
-                
-                # Если шаблон не найден, используем fallback
-                if not success:
-                    html, text = create_mentorship_email(
-                        user_name=mentor['full_name'],
-                        user_role='mentor',
-                        match_name=mentee['full_name'],
-                        match_segment=mentee.get('segment') or 'Not specified',
-                        match_affiliation=mentee.get('affiliation') or 'Not specified',
-                        match_about=mentee.get('about') or 'No information provided',
-                        match_email=mentee.get('email') or 'Not provided',
-                        match_telegram=telegram_contact(mentee)
-                    )
-                    await send_email(
-                        mentor['email'],
-                        "🎓 Mentorship Match - You've Been Assigned a Mentee",
-                        html,
-                        text
-                    )
-            except Exception as e:
-                print(f"Failed to send email to mentor: {e}")
-        
-        # === Отправка менти ===
-        comm_mode_mentee = mentee.get('communication_mode') or 'email+telegram'
-        
-        # Telegram для менти
-        if comm_mode_mentee in ['telegram_only', 'email+telegram']:
-            mentee_tg_text = (
-                "🎓 *Mentorship Match Assigned*\n\n"
-                f"You have been matched with a mentor:\n\n"
-                f"👤 *Name*: {mentor['full_name']}\n"
-                f"🎓 *Segment*: {mentor.get('segment') or '—'}\n"
-                f"🏫 *Affiliation*: {mentor.get('affiliation') or '—'}\n\n"
-                f"📝 *About*:\n{mentor.get('about') or '—'}\n\n"
-                f"📲 *Contact*:\n{fmt_contact(mentor)}\n\n"
-                f"*Next Steps:*\n"
-                f"• Your mentor will reach out to you soon\n"
-                f"• Prepare questions about career in photonics\n"
-                f"• Be open and engaged in the mentoring process\n\n"
-                f"Program runs through May 31, 2025."
-            )
-            try:
-                await _bot.send_message(mentee_id, mentee_tg_text, parse_mode='Markdown')
-            except Exception as e:
-                print(f"Failed to notify mentee via Telegram: {e}")
-        
-        # Email для менти (используем template из БД)
-        if comm_mode_mentee in ['email_only', 'email+telegram'] and mentee.get('email'):
-            try:
-                # Переменные для шаблона
-                variables = {
-                    'user_name': mentee['full_name'],
-                    'user_role_title': "You've Been Assigned a Mentor",
-                    'match_emoji': '👨‍🏫',
-                    'match_role': 'Mentor',
-                    'match_name': mentor['full_name'],
-                    'match_segment': mentor.get('segment') or 'Not specified',
-                    'match_affiliation': mentor.get('affiliation') or 'Not specified',
-                    'match_about': mentor.get('about') or 'No information provided',
-                    'match_email': mentor.get('email') or 'Not provided',
-                    'match_telegram': telegram_contact(mentor),
-                    'next_steps': '• Your mentor will reach out to you soon<br>• Prepare questions about career in photonics<br>• Be open and engaged in the mentoring process'
-                }
-                
-                # Пытаемся использовать шаблон из БД
-                success = await send_templated_email(
-                    _pool,
-                    'mentorship_match',
-                    mentee['email'],
-                    variables
-                )
-                
-                # Если шаблон не найден, используем fallback
-                if not success:
-                    html, text = create_mentorship_email(
-                        user_name=mentee['full_name'],
-                        user_role='mentee',
-                        match_name=mentor['full_name'],
-                        match_segment=mentor.get('segment') or 'Not specified',
-                        match_affiliation=mentor.get('affiliation') or 'Not specified',
-                        match_about=mentor.get('about') or 'No information provided',
-                        match_email=mentor.get('email') or 'Not provided',
-                        match_telegram=telegram_contact(mentor)
-                    )
-                    await send_email(
-                        mentee['email'],
-                        "🎓 Mentorship Match - You've Been Assigned a Mentor",
-                        html,
-                        text
-                    )
-            except Exception as e:
-                print(f"Failed to send email to mentee: {e}")
-        
-        return web.json_response({'success': True})
-        
-    except Exception as e:
-        print(f"Error in assign_mentor: {e}")
-        return web.json_response({'error': str(e)}, status=500)
-
-
-async def unassign_mentor(request):
-    """Отменить назначение ментора"""
-    data = await request.json()
-    mentor_id = data.get('mentor_id')
-    mentee_id = data.get('mentee_id')
-    
-    await _pool.execute("""
-        UPDATE mentorship_matches 
-        SET active = FALSE 
-        WHERE mentor_id = $1 AND mentee_id = $2
-    """, mentor_id, mentee_id)
-    
-    return web.json_response({'success': True})
-
-
-# ====== EMAIL TEMPLATES ENDPOINTS ======
-
-async def get_email_templates(request):
-    """Get all email templates"""
-    try:
-        rows = await _pool.fetch("""
-            SELECT id, name, subject, description, variables, created_at, updated_at
-            FROM email_templates
-            ORDER BY name
-        """)
-        
-        return web.json_response([{
-            'id': r['id'],
-            'name': r['name'],
-            'subject': r['subject'],
-            'description': r['description'],
-            'variables': r['variables'] or [],
-            'created_at': r['created_at'].isoformat(),
-            'updated_at': r['updated_at'].isoformat()
-        } for r in rows])
-        
-    except Exception as e:
-        print(f"Error fetching templates: {e}")
-        return web.json_response({'error': str(e)}, status=500)
-
-
-async def get_email_template_by_id(request):
-    """Get single email template by ID"""
-    try:
-        template_id = int(request.match_info['id'])
-        
-        row = await _pool.fetchrow("""
-            SELECT id, name, subject, html_body, text_body, description, variables, 
-                   created_at, updated_at
-            FROM email_templates
-            WHERE id = $1
-        """, template_id)
-        
-        if not row:
-            return web.json_response({'error': 'Template not found'}, status=404)
-        
-        return web.json_response({
-            'id': row['id'],
-            'name': row['name'],
-            'subject': row['subject'],
-            'html_body': row['html_body'],
-            'text_body': row['text_body'],
-            'description': row['description'],
-            'variables': row['variables'] or [],
-            'created_at': row['created_at'].isoformat(),
-            'updated_at': row['updated_at'].isoformat()
-        })
-        
-    except ValueError:
-        return web.json_response({'error': 'Invalid template ID'}, status=400)
-    except Exception as e:
-        print(f"Error fetching template: {e}")
-        return web.json_response({'error': str(e)}, status=500)
-
-
-async def update_email_template(request):
-    """Update email template"""
-    try:
-        template_id = int(request.match_info['id'])
-        data = await request.json()
-        
-        # Check if template exists
-        existing = await _pool.fetchrow(
-            "SELECT id FROM email_templates WHERE id = $1",
-            template_id
-        )
-        
-        if not existing:
-            return web.json_response({'error': 'Template not found'}, status=404)
-        
-        # Update fields
-        await _pool.execute("""
-            UPDATE email_templates
-            SET subject = COALESCE($2, subject),
-                html_body = COALESCE($3, html_body),
-                text_body = COALESCE($4, text_body),
-                description = COALESCE($5, description),
-                updated_at = NOW()
-            WHERE id = $1
-        """, 
-            template_id,
-            data.get('subject'),
-            data.get('html_body'),
-            data.get('text_body'),
-            data.get('description')
-        )
-        
-        return web.json_response({'success': True})
-        
-    except ValueError:
-        return web.json_response({'error': 'Invalid template ID'}, status=400)
-    except Exception as e:
-        print(f"Error updating template: {e}")
-        return web.json_response({'error': str(e)}, status=500)
-
-
-def init_api(pool, bot, admin_ids, run_matching, get_settings_fn, set_schedule_days_fn,
-             set_schedule_time_fn, can_run_now_fn, log_run_start_fn, log_run_finish_fn, bot_token):
-    global _pool, _bot, _admin_ids, _run_matching, _get_settings, _set_schedule_days
-    global _set_schedule_time, _can_run_now, _log_run_start, _log_run_finish, BOT_TOKEN
-    
-    _pool = pool
-    _bot = bot
-    _admin_ids = admin_ids
-    _run_matching = run_matching
-    _get_settings = get_settings_fn
-    _set_schedule_days = set_schedule_days_fn
-    _set_schedule_time = set_schedule_time_fn
-    _can_run_now = can_run_now_fn
-    _log_run_start = log_run_start_fn
-    _log_run_finish = log_run_finish_fn
-    BOT_TOKEN = bot_token
-
-
-async def create_app():
-    app = web.Application(middlewares=[auth_middleware])
-    
-    # Routes
-    app.router.add_get('/health', health)
-    app.router.add_get('/api/stats', get_stats)
-    app.router.add_get('/api/schedule', get_schedule)
-    app.router.add_post('/api/schedule', update_schedule)
-    app.router.add_post('/api/run-matching', run_matching_now)
-    app.router.add_get('/api/run-history', get_run_history)
-    app.router.add_get('/api/approvals', get_pending_approvals)
-    app.router.add_post('/api/approvals/approve', approve_user)
-    app.router.add_post('/api/approvals/reject', reject_user)
-    app.router.add_get('/api/subscribers', get_subscribers)
-    app.router.add_post('/api/subscribers/pause', pause_user_subscription)
-    app.router.add_get('/api/events', get_events)
-    app.router.add_post('/api/events', create_event)
-    app.router.add_put('/api/events/{id}', update_event)
-    app.router.add_delete('/api/events/{id}', delete_event)
-    app.router.add_post('/api/events/{id}/broadcast', broadcast_event)
-    app.router.add_post('/api/broadcast', send_broadcast)
-    app.router.add_get('/api/mentors', get_mentors)
-    app.router.add_get('/api/mentees', get_mentees)
-    app.router.add_post('/api/mentors/assign', assign_mentor)
-    app.router.add_post('/api/mentors/unassign', unassign_mentor)
-    # Image upload routes
-    app.router.add_post('/api/upload-image', upload_image)
-    app.router.add_get('/uploads/{filename}', serve_upload)
-    
-    # Email Templates routes
-    app.router.add_get('/api/email-templates', get_email_templates)
-    app.router.add_get('/api/email-templates/{id}', get_email_template_by_id)
-    app.router.add_put('/api/email-templates/{id}', update_email_template)
-    
-    # Serve webapp
-    async def serve_webapp(request):
-        try:
-            with open('/app/webapp.html', 'r') as f:
-                return web.Response(text=f.read(), content_type='text/html')
-        except:
-            return web.Response(text='webapp.html not found', status=404)
-    
-    app.router.add_get('/', serve_webapp)
-    
-    # CORS
-    cors = aiohttp_cors.setup(app, defaults={
-        "*": aiohttp_cors.ResourceOptions(allow_credentials=True, expose_headers="*", allow_headers="*", allow_methods="*")
-    })
-    
-    for route in list(app.router.routes()):
-        cors.add(route)
-    
-    return app
+async def get_grades_for_student(conn: asyncpg.Connection, student_user_id: int) -> List[Dict]:
+    query = """
+    SELECT s.submission_id, a.title AS assignment_title, s.grade, s.teacher_comment
+    FROM submissions s JOIN assignments a ON s.assignment_id = a.assignment_id
+    WHERE s.student_id = $1 ORDER BY a.creation_date DESC, s.submission_date DESC;
+    """
+    return _records_to_list_dicts(await conn.fetch(query, student_user_id))

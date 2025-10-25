@@ -1,15 +1,19 @@
+# docker-compose.yml
+version: '3.8'
+
 services:
   db:
     image: postgres:15-alpine
-    container_name: phe-db
+    container_name: student-bot-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: phe
     volumes:
       - dbdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "5432:5432"
+      - "5432:5432" # Опционально: для доступа к БД с хоста
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d phe"]
       interval: 5s
@@ -18,42 +22,29 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - phe-network
+      - student-bot-network
 
   bot:
     build: .
-    container_name: phe-bot
+    container_name: student-bot-app
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      BOT_TOKEN: "${BOT_TOKEN}"
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/phe"
-      TIMEZONE: "${TIMEZONE:-Europe/Amsterdam}"
-      LOOKBACK_WEEKS: "${LOOKBACK_WEEKS:-12}"
-      RUN_COOLDOWN_MIN: "${RUN_COOLDOWN_MIN:-60}"
-      ADMIN_IDS: "${ADMIN_IDS}"
-      API_PORT: "${API_PORT:-8080}"
-      WEBAPP_URL: "${WEBAPP_URL}"
-      # Email settings
-      SMTP_HOST: "${SMTP_HOST}"
-      SMTP_PORT: "${SMTP_PORT}"
-      SMTP_USER: "${SMTP_USER}"
-      SMTP_PASS: "${SMTP_PASS}"
-    volumes:
-      - uploads:/app/uploads
+    env_file:
+      - .env
     ports:
+      # Пробрось порт твоего бэкенда веб-приложения на хост, чтобы ngrok мог к нему подключиться
+      # Пример, если бэкенд работает на порту 8080 внутри контейнера:
       - "8080:8080"
     restart: unless-stopped
     networks:
-      - phe-network
-
-networks:
-  phe-network:
-    driver: bridge
+      - student-bot-network
+    # Если нужно запускать несколько процессов (бот + бэкенд), используй command:
+    # command: sh -c "python backend.py & python client.py"
 
 volumes:
   dbdata:
-    driver: local
-  uploads:
-    driver: local
+
+networks:
+  student-bot-network:
+    driver: bridge

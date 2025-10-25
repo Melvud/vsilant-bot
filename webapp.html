@@ -1,2039 +1,703 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhE Admin Panel</title>
+    <title>Админ-панель</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --text: #0f172a;
-            --text-light: #64748b;
-            --border: #e2e8f0;
-            --shadow: 0 1px 3px rgba(0,0,0,0.1);
-            --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        .header {
-            background: var(--surface);
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: var(--shadow);
-        }
-
-        .header h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .header-subtitle {
-            font-size: 13px;
-            color: var(--text-light);
-            margin-top: 4px;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 4px;
-            padding: 12px 16px;
-            overflow-x: auto;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 60px;
-            z-index: 99;
-            scrollbar-width: none;
-        }
-
-        .tabs::-webkit-scrollbar {
-            display: none;
-        }
-
-        .tab {
-            padding: 8px 16px;
-            background: transparent;
-            border: none;
-            border-radius: 8px;
-            color: var(--text-light);
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .tab:hover {
-            background: var(--bg);
-            color: var(--text);
-        }
-
-        .tab.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 16px;
-            padding-bottom: 80px;
-        }
-
-        .section {
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-
-        .section.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: var(--shadow);
-        }
-
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 12px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            padding: 16px;
-            border-radius: 12px;
-            color: white;
-            box-shadow: var(--shadow);
-        }
-
-        .stat-card.success {
-            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
-        }
-
-        .stat-card.warning {
-            background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
-        }
-
-        .stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            font-size: 13px;
-            opacity: 0.9;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            text-decoration: none;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #059669;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-
-        .btn-secondary {
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 13px;
-        }
-
-        .input {
-            width: 100%;
-            padding: 10px 12px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 14px;
-            margin-bottom: 12px;
-            transition: border-color 0.2s;
-        }
-
-        .input:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: var(--surface);
-        }
-
-        textarea.input {
-            min-height: 100px;
-            resize: vertical;
-            font-family: inherit;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            color: var(--text);
-        }
-
-        .list-item {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            transition: box-shadow 0.2s;
-        }
-
-        .list-item:hover {
-            box-shadow: var(--shadow-lg);
-        }
-
-        .event-photo {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 12px;
-        }
-
-        .list-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 8px;
-            gap: 12px;
-        }
-
-        .list-item-title {
-            font-weight: 600;
-            font-size: 15px;
-            color: var(--text);
-        }
-
-        .list-item-meta {
-            font-size: 13px;
-            color: var(--text-light);
-            margin-top: 4px;
-        }
-
-        .list-item-content {
-            font-size: 14px;
-            color: var(--text);
-            margin: 8px 0;
-            line-height: 1.5;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-
-        .badge-success {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .badge-info {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .badge-danger {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .day-selector {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            margin: 16px 0;
-        }
-
-        .day-btn {
-            padding: 12px 8px;
-            background: var(--bg);
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            text-align: center;
-            transition: all 0.2s;
-        }
-
-        .day-btn:hover {
-            border-color: var(--primary);
-        }
-
-        .day-btn.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-light);
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 40px;
-            height: 40px;
-            border: 4px solid var(--border);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-light);
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.3;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 12px 20px;
-            border-radius: 12px;
-            box-shadow: var(--shadow-lg);
-            z-index: 1000;
-            animation: slideUp 0.3s;
-            max-width: 90%;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translate(-50%, 20px);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, 0);
-            }
-        }
-
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 16px;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--surface);
-            border-radius: 16px;
-            padding: 24px;
-            max-width: 500px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: var(--shadow-lg);
-            animation: modalSlide 0.3s;
-        }
-
-        @keyframes modalSlide {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .modal-header {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: var(--text);
-        }
-
-        .modal-footer {
-            display: flex;
-            gap: 8px;
-            margin-top: 20px;
-            justify-content: flex-end;
-        }
-
-        .mentor-match-container {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            gap: 16px;
-            align-items: center;
-            margin-top: 16px;
-        }
-
-        .mentor-select,
-        .mentee-select {
-            padding: 12px;
-            background: var(--bg);
-            border: 2px solid var(--border);
-            border-radius: 8px;
-        }
-
-        .match-arrow {
-            font-size: 24px;
-            color: var(--primary);
-        }
-
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            .button-group .btn {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .mentor-match-container {
-                grid-template-columns: 1fr;
-                gap: 12px;
-            }
-
-            .match-arrow {
-                transform: rotate(90deg);
-            }
-
-            .modal-content {
-                padding: 20px;
-            }
-        }
-
-        .info-box {
-            background: #dbeafe;
-            border-left: 4px solid var(--primary);
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin: 16px 0;
-            font-size: 14px;
-            color: var(--text);
-        }
-
-        .warning-box {
-            background: #fef3c7;
-            border-left: 4px solid var(--warning);
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin: 16px 0;
-            font-size: 14px;
-            color: var(--text);
-        }
-
-        select.input {
-            cursor: pointer;
-        }
-
-        .link-preview {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            text-decoration: none;
-            color: var(--primary);
-            font-size: 13px;
-            margin: 8px 0;
-        }
-
-        .link-preview:hover {
-            background: var(--primary);
-            color: white;
-        }
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-hint-color: #999999;
+            --tg-theme-link-color: #007bff;
+            --tg-theme-button-color: #007bff;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-secondary-bg-color: #f8f9fa;
+        }
+        body { padding: 10px; background-color: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); font-size: 14px; padding-top: 65px; } /* Added padding-top */
+        .nav-link { color: var(--tg-theme-link-color); padding: 0.5rem 0.8rem; font-size: 0.9rem; }
+        .nav-link.active { color: var(--tg-theme-text-color); background-color: var(--tg-theme-secondary-bg-color); }
+        .form-control, .form-select { background-color: var(--tg-theme-secondary-bg-color); color: var(--tg-theme-text-color); border-color: var(--tg-theme-hint-color); font-size: 0.9rem; }
+        .form-control::placeholder { color: var(--tg-theme-hint-color); }
+        .btn { background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border: none; font-size: 0.9rem; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-success { background-color: #198754; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-warning { background-color: #ffc107; color: #000;}
+        .btn-sm { padding: 0.2rem 0.4rem; font-size: 0.8rem; }
+        .list-group-item { background-color: var(--tg-theme-secondary-bg-color); border-color: var(--tg-theme-hint-color); padding: 0.75rem; }
+        .loading { text-align: center; padding: 15px; color: var(--tg-theme-hint-color); }
+        .form-label { margin-bottom: 0.3rem; font-weight: bold;}
+        .student-attendance-row span { margin-right: 10px; }
+        .statistic-item { margin-bottom: 5px; }
+        .nav-pills { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px;}
+        .nav-pills .nav-link { white-space: nowrap; }
+        .tab-pane { padding-top: 10px;}
+        #groupSelectorContainer { position: fixed; top: 0; left: 0; right: 0; background-color: var(--tg-theme-bg-color); padding: 10px; z-index: 1000; border-bottom: 1px solid var(--tg-theme-hint-color); display: flex; align-items: center;}
+        .form-check-input:checked { background-color: var(--tg-theme-button-color); border-color: var(--tg-theme-button-color); }
+        .late-submission { color: orange; font-weight: bold; }
+        .missing-submission { color: red; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🛠 PhE Admin Panel</h1>
-        <div class="header-subtitle">Management Dashboard</div>
+
+<div class="container-fluid">
+
+    <div id="groupSelectorContainer">
+        <label for="groupSelector" class="form-label me-2 mb-0">Группа:</label>
+        <select id="groupSelector" class="form-select form-select-sm" onchange="handleGroupChange(this.value)">
+            <option value="">Загрузка...</option>
+        </select>
     </div>
 
-    <div class="tabs">
-        <button class="tab active" onclick="showSection('dashboard')">📊 Dashboard</button>
-        <button class="tab" onclick="showSection('approvals')">🧾 Approvals</button>
-        <button class="tab" onclick="showSection('scheduler')">🗓 Scheduler</button>
-        <button class="tab" onclick="showSection('subscribers')">☕ RC</button>
-        <button class="tab" onclick="showSection('mentorship')">🎓 Mentorship</button>
-        <button class="tab" onclick="showSection('events')">🎉 Events</button>
-        <button class="tab" onclick="showSection('socials')">💥 Socials</button>
-        <button class="tab" onclick="showSection('broadcasts')">📣 Broadcast</button>
-        <button class="tab" onclick="showSection('history')">📜 History</button>
-        <button class="tab" onclick="showSection('email-templates')">📧 Templates</button>
+    <ul class="nav nav-pills mb-3" id="adminTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="attendance-tab" data-bs-toggle="tab" data-bs-target="#attendance" type="button" role="tab">Посещ.</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="assignments-tab" data-bs-toggle="tab" data-bs-target="#assignments" type="button" role="tab">Задания</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="submissions-tab" data-bs-toggle="tab" data-bs-target="#submissions" type="button" role="tab">Оценки</button>
+        </li>
+         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="qa-tab" data-bs-toggle="tab" data-bs-target="#qa" type="button" role="tab">Q&A</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Студенты</button>
+        </li>
+         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals" type="button" role="tab">Заявки <span id="approvalBadge" class="badge bg-danger ms-1" style="display: none;"></span></button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups" type="button" role="tab">Группы</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabContent">
+
+        <div class="tab-pane fade show active" id="attendance" role="tabpanel">
+            <h2>Посещаемость (<span class="current-group-name"></span>)</h2>
+            <div class="mb-3 d-flex align-items-center">
+                 <label for="attendanceDate" class="form-label me-2 mb-0">Дата:</label>
+                 <input type="date" id="attendanceDate" class="form-control form-control-sm w-auto me-2">
+                 <button class="btn btn-sm btn-secondary" onclick="loadAttendance()">Загрузить</button>
+            </div>
+            <div id="attendanceList">
+                <div class="loading">Выберите группу и дату.</div>
+            </div>
+             <button class="btn btn-primary mt-2" id="saveAttendanceBtn" style="display: none;" onclick="saveAttendance()">Сохранить отметки</button>
+        </div>
+
+        <div class="tab-pane fade" id="assignments" role="tabpanel">
+            <h2>Задания для группы <span class="current-group-name"></span></h2>
+             <div class="mb-3 border p-2 rounded">
+                <h5>Новое задание</h5>
+                <input type="text" id="assignmentTitle" class="form-control mb-2" placeholder="Название задания">
+                <textarea id="assignmentDescription" class="form-control mb-2" rows="3" placeholder="Описание задания"></textarea>
+                <label for="assignmentFile" class="form-label">Файл (опционально, 1 шт.):</label>
+                <input type="file" id="assignmentFile" class="form-control mb-2">
+                <label for="assignmentDueDate" class="form-label">Срок сдачи (опционально):</label>
+                <input type="datetime-local" id="assignmentDueDate" class="form-control mb-2">
+                <button class="btn btn-primary" onclick="sendAssignment()">Отправить задание группе</button>
+            </div>
+            <hr>
+             <h5>Существующие задания для группы <span class="current-group-name"></span></h5>
+             <div id="assignmentsList">
+                 <div class="loading">Загрузка заданий...</div>
+             </div>
+        </div>
+
+        <div class="tab-pane fade" id="submissions" role="tabpanel">
+            <h2>Оценки и Статистика (Группа <span class="current-group-name"></span>)</h2>
+            <div class="mb-3">
+                <label for="submissionAssignmentSelect" class="form-label">Выберите задание:</label>
+                <select id="submissionAssignmentSelect" class="form-select mb-2" onchange="loadSubmissionsForAssignment(this.value)">
+                    <option value="">Выберите задание...</option>
+                </select>
+            </div>
+             <div id="submissionControls" class="mb-3" style="display: none;">
+                 <button class="btn btn-sm btn-warning" onclick="toggleAcceptSubmissions()">Закрыть/Открыть прием работ</button>
+                 <span id="acceptingStatus" class="ms-2"></span>
+             </div>
+             <div id="submissionStats" class="mb-3"></div>
+            <div id="submissionsList"></div>
+        </div>
+
+         <div class="tab-pane fade" id="qa" role="tabpanel">
+             <h2>Вопросы от студентов</h2>
+             <div class="mb-2">
+                 <button class="btn btn-sm btn-secondary" onclick="loadQuestions(false)">Неотвеченные</button>
+                 <button class="btn btn-sm btn-secondary" onclick="loadQuestions(true)">Все</button>
+             </div>
+             <div id="questionsList">
+                 <div class="loading">Загрузка вопросов...</div>
+             </div>
+         </div>
+
+        <div class="tab-pane fade" id="users" role="tabpanel">
+            <h2>Студенты группы <span class="current-group-name"></span></h2>
+            <div id="studentsListGroup" class="list-group">
+                <div class="loading">Загрузка студентов...</div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="approvals" role="tabpanel">
+             <h2>Ожидают подтверждения</h2>
+             <div id="pendingUsersList" class="list-group mb-4"></div>
+            <hr>
+            <h2>Запросы на смену группы/имени</h2>
+             <div id="pendingGroupChangesList" class="list-group mb-2"></div>
+             <div id="pendingNameChangesList" class="list-group"></div>
+        </div>
+
+        <div class="tab-pane fade" id="groups" role="tabpanel">
+            <h2>Управление группами</h2>
+            <div class="input-group mb-3">
+                <input type="text" id="newGroupName" class="form-control" placeholder="Название новой группы">
+                <button class="btn btn-primary" onclick="addGroup()">Добавить</button>
+            </div>
+            <div id="groupsList" class="list-group"></div>
+        </div>
+
     </div>
 
-    <div class="container">
-        <!-- Dashboard -->
-        <div id="dashboard" class="section active">
-            <div class="card">
-                <div class="card-title">📊 Statistics Overview</div>
-                <div class="stats-grid" id="stats-grid">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
+</div>
 
-        <!-- Approvals -->
-        <div id="approvals" class="section">
-            <div class="card">
-                <div class="card-title">🧾 Pending Approvals</div>
-                <div class="info-box">Review and approve new user registrations</div>
-                <div id="approvals-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-        <!-- Scheduler -->
-        <div id="scheduler" class="section">
-            <div class="card">
-                <div class="card-title">🗓 Random Coffee Scheduler</div>
-                <div id="scheduler-content">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
+<script>
+    const tg = window.Telegram.WebApp;
+    const initData = tg.initDataUnsafe || {};
+    const currentUser = initData.user || {};
+    const API_BASE_URL = '/api';
 
-        <!-- Subscribers -->
-        <div id="subscribers" class="section">
-            <div class="card">
-                <div class="card-title">☕ Random Coffee Subscribers</div>
-                <div id="subscribers-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
+    let currentGroupId = localStorage.getItem('currentGroupId') || null;
+    let studentsForAttendance = [];
+    let studentsForGroupManagement = [];
+    let assignmentsForGroup = [];
+    let submissionsForAssignment = [];
+    let questionsData = [];
+    let currentAssignmentAccepting = true;
 
-        <!-- Mentorship -->
-        <div id="mentorship" class="section">
-            <div class="card">
-                <div class="card-title">🎓 Mentorship Management</div>
-                <div class="info-box">
-                    Assign mentors to mentees. Both will receive notifications with contact details.
-                </div>
-                <div class="button-group" style="margin-bottom: 20px;">
-                    <button class="btn btn-primary" onclick="showMentorMatcher()">➕ Assign Mentor</button>
-                    <button class="btn btn-secondary" onclick="loadMentorship()">🔄 Refresh</button>
-                </div>
-                <h3 style="margin: 20px 0 12px;">👨‍🏫 Mentors</h3>
-                <div id="mentors-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-                <h3 style="margin: 20px 0 12px;">👨‍🎓 Mentees</h3>
-                <div id="mentees-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Events -->
-        <div id="events" class="section">
-            <div class="card">
-                <div class="card-title">🎉 Events Management</div>
-                <button class="btn btn-primary" onclick="showEventModal()" style="margin-bottom: 16px;">➕ Create Event</button>                <div id="events-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Socials -->
-        <div id="socials" class="section">
-            <div class="card">
-                <div class="card-title">💥 Social Events</div>
-                <div class="info-box">Quick informal meetups - users will get notifications</div>
-                <button class="btn btn-primary" onclick="showSocialModal()" style="margin-bottom: 16px;">➕ Create Social</button>
-                <div id="socials-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Broadcasts -->
-        <div id="broadcasts" class="section">
-            <div class="card">
-                <div class="card-title">📣 Send Broadcast</div>
-                <div class="warning-box">⚠️ This will send a message to all approved users</div>
-                <div class="form-group">
-                    <label class="form-label">Message (Markdown supported)</label>
-                    <textarea id="broadcast-body" class="input" placeholder="Enter your message..."></textarea>
-                </div>
-                <button class="btn btn-primary" onclick="sendBroadcast()">📤 Send to All Users</button>
-            </div>
-        </div>
-
-        <!-- History -->
-        <div id="history" class="section">
-            <div class="card">
-                <div class="card-title">📜 Matching Run History</div>
-                <div id="history-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Email Templates -->
-        <div id="email-templates" class="section">
-            <div class="card">
-                <div class="card-title">📧 Email Templates Management</div>
-                <div class="info-box">
-                    Customize email templates sent to users. Available variables will be shown for each template.
-                </div>
-                <div id="templates-list">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-        <!-- Event Modal -->
-    <div id="eventModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">Create Event</div>
-            <div class="form-group">
-                <label class="form-label">Title *</label>
-                <input type="text" id="event-title" class="input" placeholder="Event title">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea id="event-desc" class="input" placeholder="Event description"></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Location</label>
-                <input type="text" id="event-location" class="input" placeholder="Event location">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Photo</label>
-                <input type="file" id="event-photo-file" accept="image/*" style="display:none" onchange="uploadEventPhoto()">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('event-photo-file').click()" style="flex: 1;">
-                        📷 Choose from Device
-                    </button>
-                </div>
-                <input type="text" id="event-photo" class="input" placeholder="Or paste URL: https://example.com/image.jpg">
-                <div id="event-photo-preview" style="display:none; margin-top: 8px;">
-                    <img src="" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
-                </div>
-                <small style="color: var(--text-light); font-size: 12px;">Choose image or paste direct URL</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Registration URL</label>
-                <input type="text" id="event-registration" class="input" placeholder="https://forms.gle/...">
-                <small style="color: var(--text-light); font-size: 12px;">Link to registration form or RSVP page</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Start Date & Time</label>
-                <input type="datetime-local" id="event-start" class="input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">End Date & Time</label>
-                <input type="datetime-local" id="event-end" class="input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Capacity (optional)</label>
-                <input type="number" id="event-capacity" class="input" placeholder="Max participants">
-            </div>
-        
-            <!-- DEBUG BUTTON -->
-            <button class="btn btn-secondary" onclick="alert('Button test works!')" style="width: 100%; margin-bottom: 10px;">
-                🐛 Test Button
-            </button>
-            
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModalDirect('eventModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="createEventDirect()">Create Event</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Social Modal -->
-    <div id="socialModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">Create Social Event</div>
-            <div class="form-group">
-                <label class="form-label">Title *</label>
-                <input type="text" id="social-title" class="input" placeholder="e.g., Movie Night">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea id="social-desc" class="input" placeholder="What's happening?"></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Location</label>
-                <input type="text" id="social-location" class="input" placeholder="Where?">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Photo</label>
-                <input type="file" id="social-photo-file" accept="image/*" style="display:none" onchange="uploadSocialPhoto()">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('social-photo-file').click()" style="flex: 1;">
-                        📷 Choose from Device
-                    </button>
-                </div>
-                <input type="text" id="social-photo" class="input" placeholder="Or paste URL: https://example.com/image.jpg">
-                <div id="social-photo-preview" style="display:none; margin-top: 8px;">
-                    <img src="" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
-                </div>
-                <small style="color: var(--text-light); font-size: 12px;">Choose image or paste direct URL</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Registration URL (optional)</label>
-                <input type="text" id="social-registration" class="input" placeholder="https://forms.gle/...">
-                <small style="color: var(--text-light); font-size: 12px;">Link to RSVP or registration</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Date & Time</label>
-                <input type="datetime-local" id="social-datetime" class="input">
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('socialModal')">Cancel</button>
-                <button class="btn btn-success" onclick="createSocial()">Create & Notify</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mentor Matcher Modal -->
-    <div id="mentorMatcherModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">Assign Mentor to Mentee</div>
-            <div class="mentor-match-container">
-                <div>
-                    <label class="form-label">Select Mentor</label>
-                    <select id="mentor-select" class="input">
-                        <option value="">Loading...</option>
-                    </select>
-                </div>
-                <div class="match-arrow">→</div>
-                <div>
-                    <label class="form-label">Select Mentee</label>
-                    <select id="mentee-select" class="input">
-                        <option value="">Loading...</option>
-                    </select>
-                </div>
-            </div>
-            <div class="info-box" style="margin-top: 16px;">
-                Both users will receive notifications with contact details
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('mentorMatcherModal')">Cancel</button>
-                <button class="btn btn-success" onclick="assignMentor()">✓ Assign</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Template Modal -->
-    <div id="templateModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <span id="template-modal-title">Edit Email Template</span>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Template Name (read-only)</label>
-                <input type="text" id="template-name" class="input" readonly>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <input type="text" id="template-desc" class="input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Email Subject</label>
-                <input type="text" id="template-subject" class="input">
-            </div>
-            <div class="info-box" id="template-variables-info">
-                <strong>Available Variables:</strong> None
-            </div>
-            <div class="form-group">
-                <label class="form-label">HTML Body</label>
-                <textarea id="template-html" class="input" style="min-height: 300px; font-family: monospace; font-size: 13px;"></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Text Body (Plain Text Fallback)</label>
-                <textarea id="template-text" class="input" style="min-height: 150px; font-family: monospace;"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('templateModal')">Cancel</button>
-                <button class="btn btn-success" onclick="previewTemplate()">👁️ Preview</button>
-                <button class="btn btn-primary" onclick="saveTemplate()">💾 Save Template</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Template Preview Modal -->
-    <div id="previewModal" class="modal">
-        <div class="modal-content" style="max-width: 900px;">
-            <div class="modal-header">📧 Email Preview</div>
-            <div class="warning-box">
-                This is a preview with sample data. Variables like {{user_name}} are replaced with example values.
-            </div>
-            <div style="margin: 20px 0;">
-                <strong>Subject:</strong> <span id="preview-subject"></span>
-            </div>
-            <div style="background: white; border: 2px solid var(--border); border-radius: 8px; padding: 20px; margin: 20px 0;">
-                <div id="preview-html"></div>
-            </div>
-            <details style="margin: 20px 0;">
-                <summary style="cursor: pointer; font-weight: 600;">📄 Plain Text Version</summary>
-                <pre id="preview-text" style="background: var(--bg); padding: 15px; border-radius: 6px; margin-top: 10px; overflow-x: auto; white-space: pre-wrap;"></pre>
-            </details>
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="closeModal('previewModal')">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-
-        const API_BASE = window.location.origin;
-        let authHeader = '';
-
-        // Функция для показа отладочных сообщений
-        function debugToast(message) {
-            showToast(`🐛 ${message}`, 'info');
-        }
-
-        if (tg.initData) {
-            authHeader = `tma ${tg.initData}`;
-            debugToast('Auth OK');
-            loadDashboard();
-        } else {
-            document.body.innerHTML = '<div class="container"><div class="card"><h2>⚠️ Error</h2><p>This app must be opened from Telegram</p></div></div>';
-        }
-
-        async function apiCall(endpoint, options = {}) {
-            try {
-                const response = await fetch(`${API_BASE}${endpoint}`, {
-                    ...options,
-                    headers: {
-                        'Authorization': authHeader,
-                        'Content-Type': 'application/json',
-                        ...options.headers
-                    }
-                });
-                
-                const responseText = await response.text();
-                
-                if (!response.ok) {
-                    let errorMessage = `HTTP ${response.status}`;
-                    try {
-                        const errorData = JSON.parse(responseText);
-                        errorMessage = errorData.error || errorMessage;
-                    } catch (e) {
-                        errorMessage = responseText || errorMessage;
-                    }
-                    throw new Error(errorMessage);
-                }
-                
-                return JSON.parse(responseText);
-            } catch (error) {
-                showToast(`Error: ${error.message}`, 'error');
-                throw error;
-            }
-        }
-
-        function convertToISO(datetimeLocal) {
-            if (!datetimeLocal) return null;
-            try {
-                const date = new Date(datetimeLocal);
-                return date.toISOString();
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function showSection(sectionId) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            const section = document.getElementById(sectionId);
-            if (section) section.classList.add('active');
-            if (event && event.target) event.target.classList.add('active');
-            
-            switch(sectionId) {
-                case 'dashboard': loadDashboard(); break;
-                case 'scheduler': loadScheduler(); break;
-                case 'approvals': loadApprovals(); break;
-                case 'subscribers': loadSubscribers(); break;
-                case 'mentorship': loadMentorship(); break;
-                case 'events': loadEvents(); break;
-                case 'socials': loadSocials(); break;
-                case 'history': loadHistory(); break;
-                case 'email-templates': loadEmailTemplates(); break;
-            }
-        }
-
-        async function loadDashboard() {
-            try {
-                const stats = await apiCall('/api/stats');
-                document.getElementById('stats-grid').innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.total_users}</div>
-                        <div class="stat-label">Total Users</div>
-                    </div>
-                    <div class="stat-card success">
-                        <div class="stat-value">${stats.subscribed}</div>
-                        <div class="stat-label">RC Subscribers</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.mentors}</div>
-                        <div class="stat-label">Mentors</div>
-                    </div>
-                    <div class="stat-card warning">
-                        <div class="stat-value">${stats.pending_approvals}</div>
-                        <div class="stat-label">Pending</div>
-                    </div>
-                    <div class="stat-card success">
-                        <div class="stat-value">${stats.recent_pairs}</div>
-                        <div class="stat-label">Pairs (7d)</div>
-                    </div>
-                `;
-            } catch (error) {
-                showToast('Failed to load dashboard', 'error');
-            }
-        }
-
-        async function loadScheduler() {
-            try {
-                const data = await apiCall('/api/schedule');
-                const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-                const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                const daysHtml = days.map((day, i) => `
-                    <button class="day-btn ${data.schedule_days.includes(day) ? 'active' : ''}" 
-                            data-day="${day}" id="day-${day}">
-                        ${dayNames[i]}
-                    </button>
-                `).join('');
-                const statusHtml = data.can_run_now 
-                    ? '<span style="color: var(--success)">✔ Ready</span>'
-                    : `<span style="color: var(--warning)">⏳ Cooldown: ${data.cooldown_minutes} min</span>`;
-                document.getElementById('scheduler-content').innerHTML = `
-                    <div class="form-group">
-                        <label class="form-label">Schedule Days</label>
-                        <div class="day-selector">${daysHtml}</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Time (24h)</label>
-                        <input type="time" class="input" id="schedule-time" value="${data.schedule_time}">
-                    </div>
-                    <div class="info-box">
-                        Status: ${statusHtml}<br>
-                        Last run: ${data.last_run_at ? new Date(data.last_run_at).toLocaleString() : 'Never'}
-                    </div>
-                    <div class="button-group">
-                        <button class="btn btn-primary" id="save-schedule-btn">💾 Save Schedule</button>
-                        <button class="btn btn-success" id="run-matching-btn" ${!data.can_run_now ? 'disabled' : ''}>
-                            ▶️ Run Now
-                        </button>
-                    </div>
-                `;
-                
-                // Add event listeners
-                document.querySelectorAll('.day-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        this.classList.toggle('active');
-                    });
-                });
-                
-                const saveBtn = document.getElementById('save-schedule-btn');
-                if (saveBtn) saveBtn.addEventListener('click', saveSchedule);
-                
-                const runBtn = document.getElementById('run-matching-btn');
-                if (runBtn) runBtn.addEventListener('click', runMatchingNow);
-                
-            } catch (error) {
-                showToast('Failed to load scheduler', 'error');
-            }
-        }
-
-        async function saveSchedule() {
-            const time = document.getElementById('schedule-time').value;
-            const days = Array.from(document.querySelectorAll('.day-btn.active')).map(btn => 
-                btn.dataset.day
-            );
-            await apiCall('/api/schedule', {
-                method: 'POST',
-                body: JSON.stringify({ schedule_days: days, schedule_time: time })
-            });
-            showToast('Schedule saved successfully', 'success');
-            loadScheduler();
-        }
-
-        async function runMatchingNow() {
-            if (!confirm('Run matching now?')) return;
-            try {
-                const result = await apiCall('/api/run-matching', { method: 'POST' });
-                showToast(`✔ Matched ${result.pairs} pairs`, 'success');
-                loadScheduler();
-            } catch (error) {
-                showToast('Failed to run matching', 'error');
-            }
-        }
-
-        async function loadApprovals() {
-            try {
-                const approvals = await apiCall('/api/approvals');
-                if (!approvals.length) {
-                    document.getElementById('approvals-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">✔</div>
-                            <div>No pending approvals</div>
-                        </div>
-                    `;
-                    return;
-                }
-                const html = approvals.map(user => `
-                    <div class="list-item">
-                        <div class="list-item-header">
-                            <div>
-                                <div class="list-item-title">${user.full_name || `User #${user.user_id}`}</div>
-                                <div class="list-item-meta">${user.email || '—'}</div>
-                            </div>
-                        </div>
-                        <div class="list-item-content">
-                            <strong>Segment:</strong> ${user.segment || '—'}<br>
-                            <strong>Affiliation:</strong> ${user.affiliation || '—'}<br>
-                            <strong>About:</strong> ${user.about || '—'}
-                        </div>
-                        <div class="button-group">
-                            <button class="btn btn-success btn-sm" data-action="approve" data-user="${user.user_id}">✔ Approve</button>
-                            <button class="btn btn-danger btn-sm" data-action="reject" data-user="${user.user_id}">✗ Reject</button>
-                        </div>
-                    </div>
-                `).join('');
-                document.getElementById('approvals-list').innerHTML = html;
-                
-                // Add event listeners
-                document.querySelectorAll('[data-action="approve"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        approveUser(parseInt(this.dataset.user));
-                    });
-                });
-                document.querySelectorAll('[data-action="reject"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        rejectUser(parseInt(this.dataset.user));
-                    });
-                });
-            } catch (error) {
-                showToast('Failed to load approvals', 'error');
-            }
-        }
-
-        async function approveUser(userId) {
-            await apiCall('/api/approvals/approve', {
-                method: 'POST',
-                body: JSON.stringify({ user_id: userId })
-            });
-            showToast('User approved', 'success');
-            loadApprovals();
-            loadDashboard();
-        }
-
-        async function rejectUser(userId) {
-            if (!confirm('Reject this user?')) return;
-            await apiCall('/api/approvals/reject', {
-                method: 'POST',
-                body: JSON.stringify({ user_id: userId })
-            });
-            showToast('User rejected', 'success');
-            loadApprovals();
-        }
-
-        async function loadSubscribers() {
-            try {
-                const subs = await apiCall('/api/subscribers');
-                if (!subs.length) {
-                    document.getElementById('subscribers-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">☕</div>
-                            <div>No subscribers yet</div>
-                        </div>
-                    `;
-                    return;
-                }
-                const html = subs.map(user => `
-                    <div class="list-item">
-                        <div class="list-item-header">
-                            <div>
-                                <div class="list-item-title">${user.full_name || `User #${user.user_id}`}</div>
-                                <div class="list-item-meta">${user.segment || '—'} • ${user.affiliation || '—'}</div>
-                            </div>
-                            <span class="badge badge-info">${user.rc_frequency}</span>
-                        </div>
-                        <div class="list-item-meta" style="margin-top: 8px;">
-                            Prefs: ${user.preferences.tue ? 'TU/e' : ''} 
-                            ${user.preferences.universities ? '+ Unis' : ''} 
-                            ${user.preferences.industry ? '+ Industry' : ''}
-                        </div>
-                        <button class="btn btn-danger btn-sm" style="margin-top: 12px;" data-action="pause" data-user="${user.user_id}">
-                            ⸫ Pause
-                        </button>
-                    </div>
-                `).join('');
-                document.getElementById('subscribers-list').innerHTML = html;
-                
-                document.querySelectorAll('[data-action="pause"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        pauseUser(parseInt(this.dataset.user));
-                    });
-                });
-            } catch (error) {
-                showToast('Failed to load subscribers', 'error');
-            }
-        }
-
-        async function pauseUser(userId) {
-            if (!confirm('Pause this user\'s subscription?')) return;
-            await apiCall('/api/subscribers/pause', {
-                method: 'POST',
-                body: JSON.stringify({ user_id: userId })
-            });
-            showToast('User paused', 'success');
-            loadSubscribers();
-        }
-
-        async function loadMentorship() {
-            try {
-                const [mentors, mentees] = await Promise.all([
-                    apiCall('/api/mentors'),
-                    apiCall('/api/mentees')
-                ]);
-                if (!mentors.length) {
-                    document.getElementById('mentors-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">👨‍🏫</div>
-                            <div>No mentors registered</div>
-                        </div>
-                    `;
-                } else {
-                    const html = mentors.map(m => `
-                        <div class="list-item">
-                            <div class="list-item-header">
-                                <div>
-                                    <div class="list-item-title">${m.full_name}</div>
-                                    <div class="list-item-meta">${m.email || ''} ${m.username ? '@'+m.username : ''}</div>
-                                </div>
-                                <span class="badge badge-success">Mentor</span>
-                            </div>
-                            <div class="list-item-content">
-                                ${m.segment || '—'} • ${m.affiliation || '—'}
-                            </div>
-                        </div>
-                    `).join('');
-                    document.getElementById('mentors-list').innerHTML = html;
-                }
-                if (!mentees.length) {
-                    document.getElementById('mentees-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">👨‍🎓</div>
-                            <div>No mentees registered</div>
-                        </div>
-                    `;
-                } else {
-                    const html = mentees.map(m => `
-                        <div class="list-item">
-                            <div class="list-item-header">
-                                <div>
-                                    <div class="list-item-title">${m.full_name}</div>
-                                    <div class="list-item-meta">${m.email || ''} ${m.username ? '@'+m.username : ''}</div>
-                                </div>
-                                ${m.has_mentor ? 
-                                    `<span class="badge badge-success">Matched</span>` : 
-                                    `<span class="badge badge-warning">Unmatched</span>`
-                                }
-                            </div>
-                            <div class="list-item-content">
-                                ${m.segment || '—'} • ${m.affiliation || '—'}
-                                ${m.has_mentor ? `<br><strong>Mentor:</strong> ${m.mentor_name}` : ''}
-                            </div>
-                            ${m.has_mentor ? `
-                                <button class="btn btn-danger btn-sm" data-action="unassign" data-mentor="${m.mentor_id}" data-mentee="${m.user_id}">
-                                    ✗ Unassign
-                                </button>
-                            ` : ''}
-                        </div>
-                    `).join('');
-                    document.getElementById('mentees-list').innerHTML = html;
-                    
-                    document.querySelectorAll('[data-action="unassign"]').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            unassignMentor(parseInt(this.dataset.mentor), parseInt(this.dataset.mentee));
-                        });
-                    });
-                }
-            } catch (error) {
-                showToast('Failed to load mentorship', 'error');
-            }
-        }
-
-        async function showMentorMatcher() {
-            try {
-                const [mentors, mentees] = await Promise.all([
-                    apiCall('/api/mentors'),
-                    apiCall('/api/mentees')
-                ]);
-                const mentorOptions = mentors.map(m => 
-                    `<option value="${m.user_id}">${m.full_name} - ${m.segment || '—'}</option>`
-                ).join('');
-                const menteeOptions = mentees.filter(m => !m.has_mentor).map(m => 
-                    `<option value="${m.user_id}">${m.full_name} - ${m.segment || '—'}</option>`
-                ).join('');
-                document.getElementById('mentor-select').innerHTML = 
-                    '<option value="">Select mentor...</option>' + mentorOptions;
-                document.getElementById('mentee-select').innerHTML = 
-                    '<option value="">Select mentee...</option>' + menteeOptions;
-                document.getElementById('mentorMatcherModal').classList.add('active');
-            } catch (error) {
-                showToast('Failed to load data', 'error');
-            }
-        }
-
-        async function assignMentor() {
-            const mentorId = document.getElementById('mentor-select').value;
-            const menteeId = document.getElementById('mentee-select').value;
-            if (!mentorId || !menteeId) {
-                showToast('Please select both mentor and mentee', 'error');
-                return;
-            }
-            try {
-                await apiCall('/api/mentors/assign', {
-                    method: 'POST',
-                    body: JSON.stringify({ mentor_id: parseInt(mentorId), mentee_id: parseInt(menteeId) })
-                });
-                showToast('Mentor assigned successfully!', 'success');
-                closeModal('mentorMatcherModal');
-                loadMentorship();
-            } catch (error) {
-                showToast('Failed to assign mentor', 'error');
-            }
-        }
-
-        async function unassignMentor(mentorId, menteeId) {
-            if (!confirm('Unassign this mentor?')) return;
-            try {
-                await apiCall('/api/mentors/unassign', {
-                    method: 'POST',
-                    body: JSON.stringify({ mentor_id: mentorId, mentee_id: menteeId })
-                });
-                showToast('Mentor unassigned', 'success');
-                loadMentorship();
-            } catch (error) {
-                showToast('Failed to unassign', 'error');
-            }
-        }
-
-        async function loadEvents() {
-            try {
-                const events = await apiCall('/api/events?type=event');
-                if (!events.length) {
-                    document.getElementById('events-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">🎉</div>
-                            <div>No events yet</div>
-                        </div>
-                    `;
-                    return;
-                }
-                const html = events.map(event => `
-                    <div class="list-item">
-                        ${event.photo_url ? `
-                            <img src="${event.photo_url}" class="event-photo" 
-                                 onerror="this.style.display='none'">
-                        ` : ''}
-                        <div class="list-item-header">
-                            <div>
-                                <div class="list-item-title">${event.title}</div>
-                                <div class="list-item-meta">
-                                    ${event.starts_at ? new Date(event.starts_at).toLocaleString() : 'TBA'}
-                                    ${event.location ? '• ' + event.location : ''}
-                                </div>
-                            </div>
-                            <span class="badge ${event.status === 'published' ? 'badge-success' : 'badge-warning'}">
-                                ${event.status}
-                            </span>
-                        </div>
-                        <div class="list-item-content">
-                            ${event.description || 'No description'}
-                        </div>
-                        ${event.registration_url ? `
-                            <div style="margin: 8px 0;">
-                                <a href="${event.registration_url}" target="_blank" class="link-preview">
-                                    📝 Registration Link →
-                                </a>
-                            </div>
-                        ` : ''}
-                        <div class="button-group">
-                            ${!event.broadcasted ? `
-                                <button class="btn btn-primary btn-sm" data-action="broadcast" data-event="${event.id}">
-                                    📢 Broadcast
-                                </button>
-                            ` : '<span class="badge badge-success">Broadcasted</span>'}
-                            <button class="btn btn-danger btn-sm" data-action="delete" data-event="${event.id}">🗑 Delete</button>
-                        </div>
-                    </div>
-                `).join('');
-                document.getElementById('events-list').innerHTML = html;
-                
-                document.querySelectorAll('[data-action="broadcast"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        broadcastEvent(parseInt(this.dataset.event));
-                    });
-                });
-                document.querySelectorAll('[data-action="delete"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        deleteEvent(parseInt(this.dataset.event));
-                    });
-                });
-            } catch (error) {
-                showToast('Failed to load events', 'error');
-            }
-        }
-
-        async function loadSocials() {
-            try {
-                const socials = await apiCall('/api/events?type=social');
-                if (!socials.length) {
-                    document.getElementById('socials-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">💥</div>
-                            <div>No socials yet</div>
-                        </div>
-                    `;
-                    return;
-                }
-                const html = socials.map(social => `
-                    <div class="list-item">
-                        ${social.photo_url ? `
-                            <img src="${social.photo_url}" class="event-photo" 
-                                 onerror="this.style.display='none'">
-                        ` : ''}
-                        <div class="list-item-header">
-                            <div>
-                                <div class="list-item-title">${social.title}</div>
-                                <div class="list-item-meta">
-                                    ${social.starts_at ? new Date(social.starts_at).toLocaleString() : 'TBA'}
-                                    ${social.location ? '• ' + social.location : ''}
-                                </div>
-                            </div>
-                            <span class="badge ${social.status === 'published' ? 'badge-success' : 'badge-warning'}">
-                                ${social.status}
-                            </span>
-                        </div>
-                        <div class="list-item-content">
-                            ${social.description || 'No description'}
-                        </div>
-                        ${social.registration_url ? `
-                            <div style="margin: 8px 0;">
-                                <a href="${social.registration_url}" target="_blank" class="link-preview">
-                                    📝 RSVP Link →
-                                </a>
-                            </div>
-                        ` : ''}
-                        <div class="button-group">
-                            ${!social.broadcasted ? `
-                                <button class="btn btn-primary btn-sm" data-action="broadcast-social" data-event="${social.id}">
-                                    📢 Broadcast
-                                </button>
-                            ` : '<span class="badge badge-success">Broadcasted</span>'}
-                            <button class="btn btn-danger btn-sm" data-action="delete-social" data-event="${social.id}">🗑 Delete</button>
-                        </div>
-                    </div>
-                `).join('');
-                document.getElementById('socials-list').innerHTML = html;
-                
-                document.querySelectorAll('[data-action="broadcast-social"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        broadcastEvent(parseInt(this.dataset.event));
-                    });
-                });
-                document.querySelectorAll('[data-action="delete-social"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        deleteEvent(parseInt(this.dataset.event));
-                    });
-                });
-            } catch (error) {
-                showToast('Failed to load socials', 'error');
-            }
-        }
-
-        function showEventModal() {
-            debugToast('Opening event modal');
-            const modal = document.getElementById('eventModal');
-            if (modal) {
-                modal.classList.add('active');
-                debugToast('Modal opened');
-            } else {
-                showToast('Modal not found!', 'error');
-            }
-        }
-
-        function showSocialModal() {
-            debugToast('Opening social modal');
-            document.getElementById('socialModal').classList.add('active');
-        }
-
-        async function createEvent() {
-            debugToast('Creating event...');
-            
-            const title = document.getElementById('event-title').value.trim();
-            if (!title) {
-                showToast('Title is required', 'error');
-                return;
-            }
-            
-            const startsAt = document.getElementById('event-start').value;
-            const endsAt = document.getElementById('event-end').value;
-            
-            const data = {
-                title,
-                description: document.getElementById('event-desc').value.trim() || null,
-                location: document.getElementById('event-location').value.trim() || null,
-                photo_url: document.getElementById('event-photo').value.trim() || null,
-                registration_url: document.getElementById('event-registration').value.trim() || null,
-                starts_at: convertToISO(startsAt),
-                ends_at: convertToISO(endsAt),
-                capacity: document.getElementById('event-capacity').value ? 
-                    parseInt(document.getElementById('event-capacity').value) : null,
-                status: 'published',
-                event_type: 'event'
-            };
-            
-            try {
-                const result = await apiCall('/api/events', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-                showToast('Event created!', 'success');
-                closeModal('eventModal');
-                loadEvents();
-                
-                // Clear form
-                document.getElementById('event-title').value = '';
-                document.getElementById('event-desc').value = '';
-                document.getElementById('event-location').value = '';
-                document.getElementById('event-photo').value = '';
-                document.getElementById('event-registration').value = '';
-                document.getElementById('event-start').value = '';
-                document.getElementById('event-end').value = '';
-                document.getElementById('event-capacity').value = '';
-                
-                const preview = document.getElementById('event-photo-preview');
-                if (preview) preview.style.display = 'none';
-            } catch (error) {
-                showToast('Create failed: ' + error.message, 'error');
-            }
-        }
-
-        async function createSocial() {
-            debugToast('Creating social...');
-            
-            const title = document.getElementById('social-title').value.trim();
-            if (!title) {
-                showToast('Title is required', 'error');
-                return;
-            }
-            
-            const datetime = document.getElementById('social-datetime').value;
-            
-            const data = {
-                title: `💥 ${title}`,
-                description: document.getElementById('social-desc').value.trim() || null,
-                location: document.getElementById('social-location').value.trim() || null,
-                photo_url: document.getElementById('social-photo').value.trim() || null,
-                registration_url: document.getElementById('social-registration').value.trim() || null,
-                starts_at: convertToISO(datetime),
-                status: 'published',
-                event_type: 'social'
-            };
-            
-            try {
-                const result = await apiCall('/api/events', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-                showToast('Social created! Broadcasting...', 'success');
-                
-                try {
-                    await apiCall(`/api/events/${result.id}/broadcast`, { method: 'POST' });
-                    showToast('Broadcasted!', 'success');
-                } catch (e) {
-                    showToast('Created but broadcast failed', 'warning');
-                }
-                
-                closeModal('socialModal');
-                loadSocials();
-                
-                // Clear form
-                document.getElementById('social-title').value = '';
-                document.getElementById('social-desc').value = '';
-                document.getElementById('social-location').value = '';
-                document.getElementById('social-photo').value = '';
-                document.getElementById('social-registration').value = '';
-                document.getElementById('social-datetime').value = '';
-                
-                const preview = document.getElementById('social-photo-preview');
-                if (preview) preview.style.display = 'none';
-            } catch (error) {
-                showToast('Create failed: ' + error.message, 'error');
-            }
-        }
-
-        async function broadcastEvent(eventId) {
-            if (!confirm('Broadcast this event to all users?')) return;
-            try {
-                const result = await apiCall(`/api/events/${eventId}/broadcast`, { method: 'POST' });
-                showToast(`Sent to ${result.sent_to} users`, 'success');
-                loadEvents();
-                loadSocials();
-            } catch (error) {
-                showToast('Broadcast failed', 'error');
-            }
-        }
-
-        async function deleteEvent(eventId) {
-            if (!confirm('Delete this event?')) return;
-            await apiCall(`/api/events/${eventId}`, { method: 'DELETE' });
-            showToast('Event deleted', 'success');
-            loadEvents();
-            loadSocials();
-        }
-
-        async function sendBroadcast() {
-            const body = document.getElementById('broadcast-body').value.trim();
-            if (!body) {
-                showToast('Please enter a message', 'error');
-                return;
-            }
-            if (!confirm('Send broadcast to all users?')) return;
-            try {
-                const result = await apiCall('/api/broadcast', {
-                    method: 'POST',
-                    body: JSON.stringify({ body, filters: {} })
-                });
-                showToast(`Sent to ${result.sent_to} users`, 'success');
-                document.getElementById('broadcast-body').value = '';
-            } catch (error) {
-                showToast('Broadcast failed', 'error');
-            }
-        }
-
-        async function loadHistory() {
-            try {
-                const history = await apiCall('/api/run-history');
-                if (!history.length) {
-                    document.getElementById('history-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📜</div>
-                            <div>No run history</div>
-                        </div>
-                    `;
-                    return;
-                }
-                const html = history.map(run => `
-                    <div class="list-item">
-                        <div class="list-item-header">
-                            <div>
-                                <div class="list-item-title">
-                                    ${run.status === 'ok' ? '✅' : '❌'} 
-                                    ${run.run_type.toUpperCase()}
-                                </div>
-                                <div class="list-item-meta">
-                                    ${new Date(run.started_at).toLocaleString()}
-                                </div>
-                            </div>
-                            <span class="badge badge-info">${run.pairs_count || 0} pairs</span>
-                        </div>
-                        ${run.error_text ? `
-                            <div class="warning-box" style="margin-top: 8px;">
-                                ${run.error_text}
-                            </div>
-                        ` : ''}
-                    </div>
-                `).join('');
-                document.getElementById('history-list').innerHTML = html;
-            } catch (error) {
-                showToast('Failed to load history', 'error');
-            }
-        }
-
-        async function loadEmailTemplates() {
-            try {
-                const templates = await apiCall('/api/email-templates');
-                if (!templates.length) {
-                    document.getElementById('templates-list').innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📧</div>
-                            <div>No email templates found</div>
-                        </div>
-                    `;
-                    return;
-                }
-                const html = templates.map(t => `
-                    <div class="list-item">
-                        <div class="list-item-header">
-                            <div>
-                                <div class="list-item-title">
-                                    ${t.name === 'random_coffee' ? '☕' : '🎓'} ${t.name.replace('_', ' ').toUpperCase()}
-                                </div>
-                                <div class="list-item-meta">${t.description || '—'}</div>
-                            </div>
-                            <span class="badge badge-info">
-                                ${t.variables ? t.variables.length : 0} variables
-                            </span>
-                        </div>
-                        <div class="list-item-content">
-                            <strong>Subject:</strong> ${t.subject}<br>
-                            <strong>Last updated:</strong> ${new Date(t.updated_at).toLocaleString()}
-                        </div>
-                        <div class="button-group">
-                            <button class="btn btn-primary btn-sm" data-action="edit-template" data-template="${t.id}">
-                                ✏️ Edit
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-                document.getElementById('templates-list').innerHTML = html;
-                
-                document.querySelectorAll('[data-action="edit-template"]').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        editTemplate(parseInt(this.dataset.template));
-                    });
-                });
-            } catch (error) {
-                showToast('Failed to load templates', 'error');
-            }
-        }
-
-        async function editTemplate(templateId) {
-            try {
-                const template = await apiCall(`/api/email-templates/${templateId}`);
-                document.getElementById('template-modal-title').textContent = 
-                    `Edit Template: ${template.name.replace('_', ' ').toUpperCase()}`;
-                document.getElementById('template-name').value = template.name;
-                document.getElementById('template-desc').value = template.description || '';
-                document.getElementById('template-subject').value = template.subject;
-                document.getElementById('template-html').value = template.html_body;
-                document.getElementById('template-text').value = template.text_body || '';
-                if (template.variables && template.variables.length > 0) {
-                    const varsHtml = template.variables.map(v => 
-                        `<code>{{${v}}}</code>`
-                    ).join(', ');
-                    document.getElementById('template-variables-info').innerHTML = 
-                        `<strong>Available Variables:</strong> ${varsHtml}`;
-                } else {
-                    document.getElementById('template-variables-info').innerHTML = 
-                        '<strong>Available Variables:</strong> None';
-                }
-                document.getElementById('templateModal').dataset.templateId = templateId;
-                document.getElementById('templateModal').classList.add('active');
-            } catch (error) {
-                showToast('Failed to load template', 'error');
-            }
-        }
-
-        async function saveTemplate() {
-            const templateId = document.getElementById('templateModal').dataset.templateId;
-            const data = {
-                subject: document.getElementById('template-subject').value,
-                html_body: document.getElementById('template-html').value,
-                text_body: document.getElementById('template-text').value,
-                description: document.getElementById('template-desc').value
-            };
-            try {
-                await apiCall(`/api/email-templates/${templateId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                });
-                showToast('Template saved!', 'success');
-                closeModal('templateModal');
-                loadEmailTemplates();
-            } catch (error) {
-                showToast('Save failed', 'error');
-            }
-        }
-
-        function previewTemplate() {
-            const subject = document.getElementById('template-subject').value;
-            const htmlBody = document.getElementById('template-html').value;
-            const textBody = document.getElementById('template-text').value;
-            const sampleData = {
-                user_name: 'John Doe',
-                match_name: 'Jane Smith',
-                match_segment: 'Master Student',
-                match_affiliation: 'TU/e: ECO',
-                match_about: 'Interested in photonics and fiber optics. Working on sensor technology.',
-                match_email: 'jane.smith@example.com',
-                match_telegram: '@janesmith',
-                starter_questions: '<ul><li>What are you working on this week?</li><li>What skill are you trying to grow?</li></ul>',
-                user_role_title: 'You\'ve Been Assigned a Mentor',
-                match_emoji: '👨‍🏫',
-                match_role: 'Mentor',
-                next_steps: '• Reach out to schedule your first session<br>• Aim for monthly calls<br>• Focus on career development'
-            };
-            let previewSubject = subject;
-            let previewHtml = htmlBody;
-            let previewText = textBody;
-            for (const [key, value] of Object.entries(sampleData)) {
-                const placeholder = `{{${key}}}`;
-                previewSubject = previewSubject.replaceAll(placeholder, value);
-                previewHtml = previewHtml.replaceAll(placeholder, value);
-                previewText = previewText.replaceAll(placeholder, value);
-            }
-            document.getElementById('preview-subject').textContent = previewSubject;
-            document.getElementById('preview-html').innerHTML = previewHtml;
-            document.getElementById('preview-text').textContent = previewText;
-            document.getElementById('previewModal').classList.add('active');
-        }
-        
-        async function uploadEventPhoto() {
-            const fileInput = document.getElementById('event-photo-file');
-            const file = fileInput.files[0];
-            if (!file) return;
-
-            showToast('Uploading...', 'info');
-
-            const formData = new FormData();
-            formData.append('image', file);
-
-            try {
-                const response = await fetch(`${API_BASE}/api/upload-image`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': authHeader
-                    },
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error('Upload failed');
-
-                const result = await response.json();
-                document.getElementById('event-photo').value = result.url;
-                
-                const preview = document.getElementById('event-photo-preview');
-                preview.style.display = 'block';
-                preview.querySelector('img').src = result.url;
-                
-                showToast('Uploaded!', 'success');
-            } catch (error) {
-                showToast('Upload failed', 'error');
-            }
-        }
-
-        async function uploadSocialPhoto() {
-            const fileInput = document.getElementById('social-photo-file');
-            const file = fileInput.files[0];
-            if (!file) return;
-
-            showToast('Uploading...', 'info');
-
-            const formData = new FormData();
-            formData.append('image', file);
-
-            try {
-                const response = await fetch(`${API_BASE}/api/upload-image`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': authHeader
-                    },
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error('Upload failed');
-
-                const result = await response.json();
-                document.getElementById('social-photo').value = result.url;
-                
-                const preview = document.getElementById('social-photo-preview');
-                preview.style.display = 'block';
-                preview.querySelector('img').src = result.url;
-                
-                showToast('Uploaded!', 'success');
-            } catch (error) {
-                showToast('Upload failed', 'error');
-            }
-        }
-        
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) modal.classList.remove('active');
-        }
-
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = message;
-            toast.style.cssText = type === 'error' ? 'background: #ef4444; color: white;' : 
-                                 type === 'success' ? 'background: #10b981; color: white;' : '';
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-
-        // Initialize event listeners after DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Modal close on background click
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        modal.classList.remove('active');
-                    }
-                });
-            });
-        });
-
-        // Add haptic feedback
+    async function apiRequest(endpoint, method = 'GET', body = null, isFormData = false) {
+        tg.MainButton.showProgress();
         try {
-            tg.HapticFeedback.impactOccurred('light');
-        } catch (e) {}
-        
-        debugToast('Script loaded');
+            const headers = { 'Telegram-Init-Data': tg.initData };
+            if (!isFormData && body) {
+                headers['Content-Type'] = 'application/json';
+            }
 
-        // DIRECT INLINE FUNCTIONS - работают в Telegram WebApp
-function closeModalDirect(modalId) {
-    showToast('Closing ' + modalId, 'info');
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('active');
-    }
-}
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: method, headers: headers,
+                body: isFormData ? body : (body ? JSON.stringify(body) : null),
+            });
 
-async function createEventDirect() {
-    showToast('🎉 Creating event...', 'info');
-    
-    try {
-        const title = document.getElementById('event-title').value.trim();
-        if (!title) {
-            showToast('❌ Title required!', 'error');
-            return;
+            if (!response.ok) {
+                let errorData = { detail: response.statusText };
+                try { errorData = await response.json(); } catch (e) {}
+                throw new Error(errorData.detail || `HTTP error ${response.status}`);
+            }
+            return response.status === 204 ? null : await response.json();
+        } catch (error) {
+            console.error('API Error:', method, endpoint, error);
+            tg.showAlert(`Ошибка API: ${error.message || 'Неизвестная ошибка'}`);
+            return null;
+        } finally {
+            tg.MainButton.hideProgress();
         }
-        
-        showToast('Title: ' + title, 'info');
-        
-        const startsAt = document.getElementById('event-start').value;
-        const endsAt = document.getElementById('event-end').value;
-        
-        const data = {
-            title: title,
-            description: document.getElementById('event-desc').value.trim() || null,
-            location: document.getElementById('event-location').value.trim() || null,
-            photo_url: document.getElementById('event-photo').value.trim() || null,
-            registration_url: document.getElementById('event-registration').value.trim() || null,
-            starts_at: startsAt ? new Date(startsAt).toISOString() : null,
-            ends_at: endsAt ? new Date(endsAt).toISOString() : null,
-            capacity: document.getElementById('event-capacity').value ? 
-                parseInt(document.getElementById('event-capacity').value) : null,
-            status: 'published',
-            event_type: 'event'
-        };
-        
-        showToast('📤 Sending to API...', 'info');
-        
-        const response = await fetch(API_BASE + '/api/events', {
-            method: 'POST',
-            headers: {
-                'Authorization': authHeader,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
+    }
+
+    function updateCurrentGroupName(groupId, groups) {
+         const groupName = groupId ? groups.find(g => g.group_id == groupId)?.name || '?' : 'Не выбрана';
+         document.querySelectorAll('.current-group-name').forEach(el => el.textContent = groupName);
+     }
+
+    async function loadInitialData() {
+        const groups = await apiRequest('/groups');
+        if (!groups) return;
+
+        const groupSelector = document.getElementById('groupSelector');
+        const currentSelectedValue = groupSelector.value;
+        groupSelector.innerHTML = '<option value="">Выберите группу...</option>';
+        groups.forEach(group => {
+            const option = document.createElement('option');
+            option.value = group.group_id;
+            option.textContent = group.name;
+            if (currentGroupId && group.group_id == currentGroupId) {
+                 option.selected = true;
+            } else if (!currentGroupId && currentSelectedValue && group.group_id == currentSelectedValue) {
+                 option.selected = true; // Keep selection if currentGroupId was nullified
+                 currentGroupId = currentSelectedValue;
+                 localStorage.setItem('currentGroupId', currentGroupId);
+            }
+            groupSelector.appendChild(option);
         });
-        
-        const responseText = await response.text();
-        
-        if (!response.ok) {
-            showToast('❌ Error: ' + response.status, 'error');
-            return;
-        }
-        
-        const result = JSON.parse(responseText);
-        showToast('✅ Event created! ID: ' + result.id, 'success');
-        
-        closeModalDirect('eventModal');
-        
-        // Clear form
-        document.getElementById('event-title').value = '';
-        document.getElementById('event-desc').value = '';
-        document.getElementById('event-location').value = '';
-        document.getElementById('event-photo').value = '';
-        document.getElementById('event-registration').value = '';
-        document.getElementById('event-start').value = '';
-        document.getElementById('event-end').value = '';
-        document.getElementById('event-capacity').value = '';
-        
-        // Reload events
-        if (typeof loadEvents === 'function') {
-            loadEvents();
-        }
-        
-    } catch (error) {
-        showToast('❌ Exception: ' + error.message, 'error');
-    }
-}
 
-// Override показа модального окна
-function showEventModal() {
-    showToast('📂 Opening event modal', 'info');
-    const modal = document.getElementById('eventModal');
-    if (modal) {
-        modal.classList.add('active');
-        showToast('✅ Modal opened', 'success');
-    } else {
-        showToast('❌ Modal not found!', 'error');
-    }
-}
-    </script>
+        if (!groupSelector.value && currentGroupId) {
+             currentGroupId = null; // Group might have been deleted
+             localStorage.removeItem('currentGroupId');
+        } else if (groupSelector.value) {
+            currentGroupId = groupSelector.value; // Ensure currentGroupId is set if selected
+             localStorage.setItem('currentGroupId', currentGroupId);
+        }
+
+
+        updateCurrentGroupName(currentGroupId, groups);
+        loadGroupsList(groups);
+        loadApprovals();
+
+        const activeTab = document.querySelector('#adminTab .nav-link.active');
+        if (activeTab) {
+             handleTabChange(activeTab.getAttribute('data-bs-target'));
+        }
+     }
+
+     function handleGroupChange(groupId) {
+         currentGroupId = groupId || null;
+         if (currentGroupId) localStorage.setItem('currentGroupId', currentGroupId);
+         else localStorage.removeItem('currentGroupId');
+         loadInitialData();
+     }
+
+    async function loadStudentsForGroup(groupId) {
+         const listDiv = document.getElementById('studentsListGroup');
+         if (!groupId) { listDiv.innerHTML = '<div class="list-group-item">Группа не выбрана.</div>'; return; }
+         listDiv.innerHTML = '<div class="loading">Загрузка студентов...</div>';
+         studentsForGroupManagement = await apiRequest(`/users?role=student&group_id=${groupId}`);
+         if (studentsForGroupManagement && studentsForGroupManagement.length > 0) {
+             listDiv.innerHTML = studentsForGroupManagement.map(s => `
+                 <div class="list-group-item d-flex justify-content-between align-items-center">
+                     <span>${s.last_name} ${s.first_name}</span>
+                     <button class="btn btn-sm btn-danger" onclick="removeStudentFromGroup(${s.user_id}, '${s.last_name} ${s.first_name}')">Удалить из группы</button>
+                 </div>`).join('');
+         } else if (studentsForGroupManagement) {
+             listDiv.innerHTML = '<div class="list-group-item">Студентов нет.</div>';
+         } else {
+             listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка загрузки.</div>';
+         }
+     }
+
+     async function removeStudentFromGroup(userId, studentName) {
+         tg.showConfirm(`Удалить ${studentName} из группы?`, async (confirmed) => {
+             if (confirmed) {
+                 if (await apiRequest(`/users/${userId}/group`, 'PATCH', { group_id: null })) {
+                     loadStudentsForGroup(currentGroupId);
+                 }
+             }
+         });
+     }
+
+     async function loadAttendance() {
+         const date = document.getElementById('attendanceDate').value;
+         const listDiv = document.getElementById('attendanceList');
+         const saveBtn = document.getElementById('saveAttendanceBtn');
+         saveBtn.style.display = 'none';
+
+         if (!currentGroupId || !date) { listDiv.innerHTML = '<div class="list-group-item">Выберите группу и дату.</div>'; return; }
+         listDiv.innerHTML = '<div class="loading">Загрузка...</div>';
+
+         const [students, attendanceData] = await Promise.all([
+             apiRequest(`/users?role=student&group_id=${currentGroupId}&approved=true`),
+             apiRequest(`/attendance?group_id=${currentGroupId}&date=${date}`)
+         ]);
+
+         if (!students) { listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка студентов.</div>'; return; }
+
+         studentsForAttendance = students;
+         const attendanceMap = new Map(attendanceData?.map(att => [att.student_id, att.is_present]) || []);
+
+         if (students.length > 0) {
+             listDiv.innerHTML = students.map(s => {
+                 const isPresent = attendanceMap.get(s.user_id) ?? true;
+                 return `
+                     <div class="list-group-item d-flex justify-content-between align-items-center student-attendance-row">
+                         <span>${s.last_name} ${s.first_name}</span>
+                         <div class="form-check form-switch">
+                           <input class="form-check-input" type="checkbox" role="switch" id="att-${s.user_id}" data-studentid="${s.user_id}" ${isPresent ? 'checked' : ''}>
+                           <label class="form-check-label" for="att-${s.user_id}">${isPresent ? 'Да' : 'Нет'}</label>
+                         </div>
+                     </div>`;
+             }).join('');
+             saveBtn.style.display = 'block';
+             listDiv.querySelectorAll('.form-check-input').forEach(input => {
+                 input.addEventListener('change', (e) => e.target.nextElementSibling.textContent = e.target.checked ? 'Да' : 'Нет');
+             });
+         } else { listDiv.innerHTML = '<div class="list-group-item">Студентов нет.</div>'; }
+     }
+
+     async function saveAttendance() {
+         const date = document.getElementById('attendanceDate').value;
+         if (!currentGroupId || !date) return;
+         const payload = { group_id: parseInt(currentGroupId), date: date, attendance: [] };
+         document.querySelectorAll('#attendanceList .form-check-input').forEach(input => {
+             payload.attendance.push({ student_id: parseInt(input.dataset.studentid), is_present: input.checked });
+         });
+         if (await apiRequest('/attendance', 'POST', payload)) {
+             tg.showAlert('Посещаемость сохранена.');
+             loadAttendance();
+         }
+     }
+
+     async function loadAssignmentsForGroup(groupId) {
+         const assignmentSelect = document.getElementById('submissionAssignmentSelect');
+         const assignmentsListDiv = document.getElementById('assignmentsList');
+         assignmentSelect.innerHTML = '<option value="">Загрузка...</option>';
+         assignmentsListDiv.innerHTML = '<div class="loading">Загрузка...</div>';
+         document.getElementById('submissionControls').style.display = 'none';
+
+         if (!groupId) {
+              assignmentSelect.innerHTML = '<option value="">Группа?</option>';
+              assignmentsListDiv.innerHTML = '<div class="list-group-item">Группа?</div>';
+              assignmentsForGroup = []; return;
+         }
+
+         assignmentsForGroup = await apiRequest(`/assignments?group_id=${groupId}`);
+         if (assignmentsForGroup) {
+             const optionsHtml = '<option value="">Выберите задание...</option>' + assignmentsForGroup.map(a => `<option value="${a.assignment_id}">${a.title}</option>`).join('');
+             assignmentSelect.innerHTML = optionsHtml;
+             assignmentsListDiv.innerHTML = assignmentsForGroup.length > 0
+                 ? assignmentsForGroup.map(a => `
+                     <div class="list-group-item">
+                         <strong>${a.title}</strong> (ID: ${a.assignment_id})
+                         ${a.due_date ? `<br><small>Срок: ${new Date(a.due_date).toLocaleString()}</small>` : ''}
+                         <br><small>Прием работ: ${a.accepting_submissions ? 'Открыт ✅' : 'Закрыт ❌'}</small>
+                     </div>`).join('')
+                 : '<div class="list-group-item">Заданий нет.</div>';
+         } else {
+              assignmentSelect.innerHTML = '<option value="">Ошибка</option>';
+              assignmentsListDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
+         }
+      }
+
+      async function sendAssignment() {
+         if (!currentGroupId) { tg.showAlert('Выберите группу.'); return; }
+         const title = document.getElementById('assignmentTitle').value.trim();
+         if (!title) { tg.showAlert('Введите название.'); return; }
+         const description = document.getElementById('assignmentDescription').value.trim();
+         const fileInput = document.getElementById('assignmentFile');
+         const file = fileInput.files[0];
+         const dueDate = document.getElementById('assignmentDueDate').value ? new Date(document.getElementById('assignmentDueDate').value).toISOString() : null;
+
+         tg.MainButton.showProgress();
+         let fileInfo = null;
+         if (file) {
+             const formData = new FormData(); formData.append('file', file);
+             fileInfo = await apiRequest('/upload_file', 'POST', formData, true);
+             if (!fileInfo || !fileInfo.file_id) { tg.MainButton.hideProgress(); return; }
+         }
+
+         const payload = {
+             group_id: parseInt(currentGroupId), title: title, description: description || null, due_date: dueDate,
+             file_id: fileInfo?.file_id, file_type: fileInfo?.file_type
+         };
+
+         const result = await apiRequest('/assignments/send', 'POST', payload);
+         tg.MainButton.hideProgress();
+         if (result && result.assignment_id) {
+             document.getElementById('assignmentTitle').value = '';
+             document.getElementById('assignmentDescription').value = '';
+             fileInput.value = ''; document.getElementById('assignmentDueDate').value = '';
+             tg.showAlert('Задание отправлено.');
+             // Уведомляем бота для рассылки
+             tg.sendData(JSON.stringify({
+                 action: 'send_assignment_to_group',
+                 assignment_id: result.assignment_id,
+                 group_id: payload.group_id, title: payload.title, description: payload.description,
+                 due_date: payload.due_date, file_id: payload.file_id, file_type: payload.file_type
+             }));
+             loadAssignmentsForGroup(currentGroupId);
+         } else { tg.showAlert('Не удалось отправить.'); }
+     }
+
+     async function toggleAcceptSubmissions() {
+         const assignmentId = document.getElementById('submissionAssignmentSelect').value;
+         if (!assignmentId) return;
+         const newState = !currentAssignmentAccepting;
+         const result = await apiRequest(`/assignments/${assignmentId}/toggle_submission`, 'POST', { accept: newState });
+         if (result) {
+             currentAssignmentAccepting = newState;
+             document.getElementById('acceptingStatus').textContent = newState ? 'Прием открыт ✅' : 'Прием закрыт ❌';
+             tg.showAlert(`Прием работ ${newState ? 'открыт' : 'закрыт'}.`);
+             loadAssignmentsForGroup(currentGroupId); // Update list view
+         }
+     }
+
+     async function loadSubmissionsForAssignment(assignmentId) {
+         const statsDiv = document.getElementById('submissionStats');
+         const listDiv = document.getElementById('submissionsList');
+         const controlsDiv = document.getElementById('submissionControls');
+         controlsDiv.style.display = 'none';
+
+         if (!assignmentId) { statsDiv.innerHTML = ''; listDiv.innerHTML = ''; submissionsForAssignment = []; return; }
+
+         statsDiv.innerHTML = '<div class="loading">Загрузка...</div>';
+         listDiv.innerHTML = '<div class="loading">Загрузка...</div>';
+
+         const [students, submissions, assignmentInfo] = await Promise.all([
+             apiRequest(`/users?role=student&group_id=${currentGroupId}&approved=true`),
+             apiRequest(`/assignments/${assignmentId}/submissions`),
+             apiRequest(`/assignments/${assignmentId}`) // Get assignment info for deadline and status
+         ]);
+
+         if (!students || !assignmentInfo) {
+              listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка загрузки.</div>';
+              statsDiv.innerHTML = ''; return;
+         }
+         currentAssignmentAccepting = assignmentInfo.accepting_submissions;
+         controlsDiv.style.display = 'block';
+         document.getElementById('acceptingStatus').textContent = currentAssignmentAccepting ? 'Прием открыт ✅' : 'Прием закрыт ❌';
+
+
+         submissionsForAssignment = submissions || [];
+         const submissionMap = new Map(submissionsForAssignment.map(sub => [sub.student_id, sub]));
+         let submittedCount = 0, gradedCount = 0, lateCount = 0;
+
+         if (students.length > 0) {
+             listDiv.innerHTML = students.map(student => {
+                 const sub = submissionMap.get(student.user_id);
+                 let statusHtml = '<span class="missing-submission">Не сдано</span>';
+                 let gradeHtml = '', fileHtml = '', timeHtml = '';
+
+                 if (sub) {
+                     submittedCount++;
+                     const isLate = sub.is_late;
+                     if (isLate) lateCount++;
+                     statusHtml = `<span class="${isLate ? 'late-submission' : 'text-warning'}">Сдано${isLate ? ' (опоздание)' : ''}</span>`;
+                     fileHtml = `<button class="btn btn-sm btn-outline-secondary me-2" onclick="requestFileFromBot('${sub.file_id}', ${sub.submission_id})">Файл</button>`;
+                     timeHtml = `<small>${new Date(sub.submission_date).toLocaleString()}</small>`;
+
+                     let score1Val = '', score2Val = '';
+                     if (sub.grade !== null) {
+                         gradedCount++;
+                         statusHtml = `<span class="text-success">Оценка: ${sub.grade}</span>`;
+                         // Example parsing back score1, score2 - ASSUMES grade = score1 + score2
+                         score1Val = Math.min(10, sub.grade); // Placeholder logic
+                         score2Val = Math.max(0, sub.grade - 10); // Placeholder logic
+                     }
+
+                     gradeHtml = `
+                         <div class="mt-2">
+                            <div class="input-group input-group-sm mb-1">
+                                <span class="input-group-text">Балл 1</span>
+                                <input type="number" id="score1-${sub.submission_id}" class="form-control" min="0" max="10" value="${score1Val}">
+                            </div>
+                             <div class="input-group input-group-sm mb-1">
+                                <span class="input-group-text">Балл 2</span>
+                                <input type="number" id="score2-${sub.submission_id}" class="form-control" min="0" max="10" value="${score2Val}">
+                            </div>
+                             <textarea id="comment-${sub.submission_id}" class="form-control form-control-sm mb-1" placeholder="Комментарий">${sub.teacher_comment || ''}</textarea>
+                             <button class="btn btn-sm btn-primary" onclick="gradeSubmission(${sub.submission_id})">Оценить</button>
+                         </div>`;
+                 }
+
+                 return `
+                     <div class="list-group-item mb-2">
+                         <div class="d-flex justify-content-between align-items-center flex-wrap">
+                             <span class="me-2">${student.last_name} ${student.first_name}</span>
+                             <div class="d-flex align-items-center">
+                                ${fileHtml}
+                                ${statusHtml}
+                                <span class="ms-2">${timeHtml}</span>
+                             </div>
+                         </div>
+                         ${gradeHtml}
+                     </div>`;
+             }).join('');
+         } else { listDiv.innerHTML = '<div class="list-group-item">Студентов нет.</div>'; }
+
+          statsDiv.innerHTML = `
+              <div>Всего: <strong>${students.length}</strong> | Сдано: <strong>${submittedCount}</strong> | Не сдано: <strong class="missing-submission">${students.length - submittedCount}</strong></div>
+              <div>Оценено: <strong>${gradedCount}</strong> | Опоздания: <strong class="late-submission">${lateCount}</strong></div>
+          `;
+     }
+
+     function requestFileFromBot(fileId, submissionId) {
+         tg.sendData(JSON.stringify({ action: 'get_submission_file', file_id: fileId, submission_id: submissionId }));
+     }
+
+     async function gradeSubmission(submissionId) {
+         const s1 = document.getElementById(`score1-${submissionId}`).value;
+         const s2 = document.getElementById(`score2-${submissionId}`).value;
+         const comment = document.getElementById(`comment-${submissionId}`).value.trim();
+         const score1 = s1 === '' ? null : parseInt(s1);
+         const score2 = s2 === '' ? null : parseInt(s2);
+
+         if ((score1 !== null && (score1 < 0 || score1 > 10)) || (score2 !== null && (score2 < 0 || score2 > 10))) {
+             tg.showAlert('Баллы 0-10.'); return;
+         }
+         const finalGrade = (score1 !== null && score2 !== null) ? score1 + score2 : null;
+         const payload = { grade: finalGrade, comment: comment || null };
+
+         if (await apiRequest(`/submissions/${submissionId}/grade`, 'PATCH', payload)) {
+             loadSubmissionsForAssignment(document.getElementById('submissionAssignmentSelect').value);
+         }
+     }
+
+     async function loadQuestions(showAnswered = false) {
+         const listDiv = document.getElementById('questionsList');
+         listDiv.innerHTML = '<div class="loading">Загрузка...</div>';
+         const endpoint = showAnswered ? '/questions?answered=all' : '/questions?answered=false';
+         questionsData = await apiRequest(endpoint);
+
+         if (questionsData && questionsData.length > 0) {
+             listDiv.innerHTML = questionsData.map(q => `
+                 <div class="list-group-item mb-2">
+                     <p><strong>${q.student_last_name || ''} ${q.student_first_name || '?'}</strong> (${q.group_name || '?'})</p>
+                     <p><small>${new Date(q.asked_at).toLocaleString()}</small></p>
+                     <p>${q.question_text}</p>
+                     ${q.answer_text
+                         ? `<hr><p><strong>Ответ (${q.answerer_name || '?'}):</strong> ${q.answer_text} <br><small>${new Date(q.answered_at).toLocaleString()}</small></p>`
+                         : `<hr><textarea id="answer-${q.question_id}" class="form-control form-control-sm mb-1" rows="2"></textarea>
+                            <button class="btn btn-sm btn-primary" onclick="answerQuestion(${q.question_id}, ${q.student_telegram_id}, '${btoa(encodeURIComponent(q.question_text))}')">Ответить</button>`
+                     }
+                 </div>`).join('');
+         } else if (questionsData) {
+              listDiv.innerHTML = `<div class="list-group-item">${showAnswered ? 'Вопросов нет.' : 'Нет неотвеч.'}</div>`;
+         } else { listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>'; }
+     }
+
+     async function answerQuestion(questionId, studentTelegramId, questionTextBase64) {
+         const answerText = document.getElementById(`answer-${questionId}`).value.trim();
+         if (!answerText) return;
+
+         const result = await apiRequest(`/questions/${questionId}/answer`, 'POST', { answer_text: answerText });
+         if (result) {
+             tg.showAlert('Ответ отправлен.');
+             // Notify bot to send message to student
+             tg.sendData(JSON.stringify({
+                 action: 'notify_answer', student_telegram_id: studentTelegramId,
+                 question_text: decodeURIComponent(atob(questionTextBase64)), answer_text: answerText
+             }));
+             loadQuestions(false);
+         }
+     }
+
+     async function loadGroupsList(groups = null) {
+         const listDiv = document.getElementById('groupsList');
+         if (!groups) { listDiv.innerHTML = '<div class="loading">Загрузка...</div>'; groups = await apiRequest('/groups'); }
+         if (groups) {
+             listDiv.innerHTML = groups.length > 0
+                 ? groups.map(g => `<div class="list-group-item d-flex justify-content-between align-items-center"><span>${g.name}</span><button class="btn btn-sm btn-danger" onclick="deleteGroup(${g.group_id}, '${g.name}')">X</button></div>`).join('')
+                 : '<div class="list-group-item">Групп нет.</div>';
+         } else { listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>'; }
+     }
+
+     async function addGroup() {
+        const nameInput = document.getElementById('newGroupName');
+        const name = nameInput.value.trim();
+        if (!name) return;
+        if (await apiRequest('/groups', 'POST', { name: name })) {
+            nameInput.value = ''; loadInitialData();
+        }
+     }
+
+     async function deleteGroup(groupId, groupName) {
+        tg.showConfirm(`Удалить группу "${groupName}"?`, async (ok) => {
+             if (ok && await apiRequest(`/groups/${groupId}`, 'DELETE')) {
+                 if (currentGroupId == groupId) { currentGroupId = null; localStorage.removeItem('currentGroupId'); }
+                 loadInitialData();
+            }
+        });
+     }
+
+     async function loadApprovals() {
+         const pendingUsersDiv = document.getElementById('pendingUsersList');
+         const pendingChangesDiv = document.getElementById('pendingGroupChangesList');
+         const pendingNameChangesDiv = document.getElementById('pendingNameChangesList');
+         pendingUsersDiv.innerHTML = '<div class="loading">...</div>';
+         pendingChangesDiv.innerHTML = '<div class="loading">...</div>';
+         pendingNameChangesDiv.innerHTML = '<div class="loading">...</div>';
+
+         const [pendingUsers, pendingGroups, pendingNames] = await Promise.all([
+              apiRequest('/users?approved=false'),
+              apiRequest('/group_changes/pending'),
+              apiRequest('/name_changes/pending') // Need this API endpoint
+         ]);
+
+         let totalPending = 0;
+
+         if (pendingUsers) {
+             totalPending += pendingUsers.length;
+             pendingUsersDiv.innerHTML = pendingUsers.length > 0 ? pendingUsers.map(u => `
+                 <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                     <div class="me-2 mb-1"><strong>${u.first_name} ${u.last_name}</strong><br><small>${u.group_name || 'Без гр.'}</small></div>
+                     <div><button class="btn btn-sm btn-success me-1" onclick="approveUser(${u.user_id}, true, 'student')">Стд.</button><button class="btn btn-sm btn-primary me-1" onclick="approveUser(${u.user_id}, true, 'teacher')">Преп.</button><button class="btn btn-sm btn-danger" onclick="rejectUser(${u.user_id})">X</button></div>
+                 </div>`).join('') : '<div class="list-group-item">Новых нет.</div>';
+         } else pendingUsersDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
+
+         if (pendingGroups) {
+              totalPending += pendingGroups.length;
+              pendingChangesDiv.innerHTML = pendingGroups.length > 0 ? pendingGroups.map(c => `
+                  <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                     <div class="me-2 mb-1"><strong>${c.first_name} ${c.last_name}</strong><br><small>${c.current_group_name || 'Без гр.'} → ${c.pending_group_name}</small></div>
+                     <div><button class="btn btn-sm btn-success me-1" onclick="approveGroupChange(${c.user_id})">Да</button><button class="btn btn-sm btn-danger" onclick="rejectGroupChange(${c.user_id})">Нет</button></div>
+                 </div>`).join('') : '<div class="list-group-item">Запросов смены группы нет.</div>';
+         } else pendingChangesDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
+
+         if (pendingNames) {
+              totalPending += pendingNames.length;
+              pendingNameChangesDiv.innerHTML = pendingNames.length > 0 ? pendingNames.map(n => `
+                  <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                     <div class="me-2 mb-1"><strong>${n.current_first_name} ${n.current_last_name}</strong><br><small>→ ${n.pending_first_name} ${n.pending_last_name}</small></div>
+                     <div><button class="btn btn-sm btn-success me-1" onclick="approveNameChange(${n.user_id})">Да</button><button class="btn btn-sm btn-danger" onclick="rejectNameChange(${n.user_id})">Нет</button></div>
+                 </div>`).join('') : '<div class="list-group-item">Запросов смены имени нет.</div>';
+         } else pendingNameChangesDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
+
+
+         const badge = document.getElementById('approvalBadge');
+         if (totalPending > 0) { badge.textContent = totalPending; badge.style.display = 'inline-block'; }
+         else { badge.style.display = 'none'; }
+     }
+
+     async function approveUser(userId, status, role = null) {
+         const approveResult = await apiRequest(`/users/${userId}/approve`, 'PATCH', { approved: status });
+         let roleResult = true;
+         if (approveResult && role) { roleResult = await apiRequest(`/users/${userId}/role`, 'PATCH', { role: role }); }
+         if (approveResult && roleResult) { loadApprovals(); tg.showAlert(`Статус изменен.`); }
+         else { tg.showAlert('Ошибка.'); }
+     }
+     async function rejectUser(userId) { await approveUser(userId, false); }
+     async function approveGroupChange(userId) { if (await apiRequest(`/group_changes/${userId}/approve`, 'POST')) loadApprovals(); }
+     async function rejectGroupChange(userId) { if (await apiRequest(`/group_changes/${userId}/reject`, 'POST')) loadApprovals(); }
+     async function approveNameChange(userId) { if (await apiRequest(`/name_changes/${userId}/approve`, 'POST')) loadApprovals(); }
+     async function rejectNameChange(userId) { if (await apiRequest(`/name_changes/${userId}/reject`, 'POST')) loadApprovals(); }
+
+     function handleTabChange(targetId) {
+         const requiresGroup = ['#attendance', '#assignments', '#submissions', '#users'];
+         if (requiresGroup.includes(targetId) && !currentGroupId) {
+             document.querySelector(targetId).innerHTML = '<div class="alert alert-warning">Выберите группу.</div>'; return;
+         }
+         switch(targetId) {
+             case '#attendance': loadAttendance(); break;
+             case '#assignments': loadAssignmentsForGroup(currentGroupId); break;
+             case '#submissions': loadAssignmentsForGroup(currentGroupId); break; // Need assignments for select
+             case '#qa': loadQuestions(false); break;
+             case '#users': loadStudentsForGroup(currentGroupId); break;
+             case '#approvals': loadApprovals(); break;
+             case '#groups': loadGroupsList(); break;
+         }
+     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        tg.ready(); tg.expand();
+        tg.setHeaderColor(tg.themeParams.secondary_bg_color || '#efefef');
+        const styles = document.documentElement.style;
+        styles.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
+        styles.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
+        styles.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
+        styles.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#007bff');
+        styles.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#007bff');
+        styles.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
+        styles.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f8f9fa');
+
+        document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
+        loadInitialData();
+        document.getElementById('adminTab')?.addEventListener('shown.bs.tab', e => handleTabChange(e.target.getAttribute('data-bs-target')));
+    });
+</script>
+
 </body>
 </html>
