@@ -49,10 +49,10 @@ CREATE TABLE IF NOT EXISTS submissions (
     file_id VARCHAR(255) NOT NULL,
     submission_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     is_late BOOLEAN NOT NULL DEFAULT FALSE,
-    submitted BOOLEAN NOT NULL DEFAULT TRUE, -- Автоматически ставим TRUE при сдаче
-    grade INT CHECK (grade >= 0 AND grade <= 20), -- Изменено на 0-20 (10+10)
-    score1 INT CHECK (score1 >= 0 AND score1 <= 10), -- Опционально для раздельных баллов
-    score2 INT CHECK (score2 >= 0 AND score2 <= 10), -- Опционально для раздельных баллов
+    submitted BOOLEAN NOT NULL DEFAULT TRUE,
+    grade INT CHECK (grade >= 0 AND grade <= 20),
+    score1 INT CHECK (score1 >= 0 AND score1 <= 10),
+    score2 INT CHECK (score2 >= 0 AND score2 <= 10),
     graded_by BIGINT REFERENCES users(user_id) ON DELETE SET NULL,
     grade_date TIMESTAMP WITH TIME ZONE,
     teacher_comment TEXT,
@@ -94,3 +94,4 @@ CREATE INDEX IF NOT EXISTS idx_attendance_student_date ON attendance(student_id,
 CREATE INDEX IF NOT EXISTS idx_questions_student_id ON questions(student_id);
 CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);
 CREATE INDEX IF NOT EXISTS idx_questions_answered_by ON questions(answered_by);
+CREATE INDEX IF NOT EXISTS idx_users_pending_name ON users(pending_first_name);

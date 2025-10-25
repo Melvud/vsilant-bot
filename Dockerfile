@@ -1,4 +1,3 @@
-# Dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -15,10 +14,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY client.py api.py schema.sql webapp.html ./
-# Если у тебя есть бэкенд для webapp.html (например, backend.py), добавь его тоже:
+# Если у тебя есть файл бэкенда (например, backend.py), добавь его сюда:
 # COPY backend.py ./
 
-# Убедись, что CMD запускает и бота, и твой бэкенд, если он нужен
-# Пример для одновременного запуска (может потребоваться process manager):
-# CMD sh -c "python backend.py & python client.py"
-CMD ["python", "-u", "client.py"] # <-- Оставь это, если бэкенд не нужен или запускается иначе
+# Убедись, что CMD правильный. Если нужно запускать и бэкенд, измени его.
+CMD ["python", "-u", "client.py"]

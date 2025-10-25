@@ -348,7 +348,45 @@ async def student_view_my_grades(message: Message, user_role: str, user_db_id: i
 
 @student_router.message(F.text == "🔄 Сменить группу")
 async def change_group_button_handler(message: Message, state: FSMContext, user_role: str, user_info: dict, db_pool: asyncpg.Pool):
-     await change_group_start(message, state, user_role, user_info, db_pool)
+    await change_group_start(message, state, user_role, user_info, db_pool)
+
+@student_router.message(Command("change_group"))
+async def change_group_start(message: Message, state: FSMContext, user_role: str, user_info: dict, db_pool: asyncpg.Pool):
+    if user_role != 'student': return
+    current_group_id = user_info.get('group_id')
+    pending_group_id = user_info.get('pending_group_id')
+    pending_group_name = user_info.get('pending_group_name')
+    if pending_group_id:
+         p_group_name = pending_group_name or f"ID {pending_group_id}"
+         await message.answer(f"⏳ Запрос на → **{html.quote(p_group_name)}** уже отправлен.", parse_mode=ParseMode.HTML); return
+    kbd = await get_groups_keyboard(db_pool, "change")
+    valid_options = []
+    if kbd.inline_keyboard:
+        for row in kbd.inline_keyboard:
+            new_row = [b for b in row if not b.callback_data.endswith(f"_{current_group_id}")]
+            if new_row: valid_options.append(new_row)
+    if not valid_options: await message.answer("Нет других групп."); return
+    await message.answer("Выберите **новую группу**:", reply_markup=InlineKeyboardMarkup(inline_keyboard=valid_options), parse_mode=ParseMode.MARKDOWN)
+    await state.set_state(StudentActions.changing_group)
+
+@student_router.callback_query(StudentActions.changing_group, F.data.startswith("change_to_group_"))
+async def process_group_change_request(query: CallbackQuery, state: FSMContext, user_db_id: int, db_pool: asyncpg.Pool):
+    new_group_id = int(query.data.split("_")[-1])
+    group_name = f"ID {new_group_id}"
+    try:
+        async with db_pool.acquire() as conn:
+            new_group = await api.get_group_by_id(conn, new_group_id)
+            if new_group: group_name = new_group['name']
+            success = await api.request_group_change(conn, user_db_id, new_group_id)
+            if success: await query.message.edit_text(f"⏳ Запрос на → **{html.quote(group_name)}** отправлен.", parse_mode=ParseMode.HTML)
+            else:
+                 user_check = await api.get_user_by_db_id(conn, user_db_id)
+                 if user_check and user_check.get('pending_group_id') == new_group_id:
+                     await query.message.edit_text(f"⏳ Запрос на → **{html.quote(group_name)}** уже отправлен.", parse_mode=ParseMode.HTML)
+                 else: await query.message.edit_text("Не удалось отправить запрос.")
+    except asyncpg.exceptions.ForeignKeyViolationError: await query.message.edit_text("❌ Группа не найдена.")
+    except Exception as e: logger.error(f"Group change req err {user_db_id}: {e}"); await query.message.edit_text("❌ Ошибка.")
+    finally: await state.clear(); await query.answer()
 
 @student_router.message(F.text == "👤 Сменить имя")
 @student_router.message(Command("change_name"))
@@ -356,7 +394,7 @@ async def change_name_start(message: Message, state: FSMContext, user_role: str,
      if user_role != 'student': return
      async with db_pool.acquire() as conn: u = await api.get_user_by_db_id(conn, user_info['user_id'])
      if u and u.get('pending_first_name'):
-         await message.answer(f"⏳ Запрос на смену имени на **{html.quote(u['pending_first_name'])} {html.quote(u['pending_last_name'])}** уже отправлен.", parse_mode=ParseMode.HTML); return
+         await message.answer(f"⏳ Запрос на → **{html.quote(u['pending_first_name'])} {html.quote(u['pending_last_name'])}** уже отправлен.", parse_mode=ParseMode.HTML); return
      await message.answer("Введите **новое Имя**:", reply_markup=ReplyKeyboardRemove(), parse_mode=ParseMode.MARKDOWN)
      await state.set_state(StudentActions.changing_name_first)
 
@@ -375,8 +413,8 @@ async def process_change_name_last(message: Message, state: FSMContext, user_db_
     data = await state.get_data(); first_name = data.get('new_first_name')
     try:
         async with db_pool.acquire() as conn: success = await api.request_name_change(conn, user_db_id, first_name, last_name)
-        if success: await message.answer(f"⏳ Запрос на смену имени на **{html.quote(first_name)} {html.quote(last_name)}** отправлен.", reply_markup=get_student_main_keyboard(), parse_mode=ParseMode.HTML)
-        else: await message.answer("Не удалось отправить запрос.", reply_markup=get_student_main_keyboard())
+        if success: await message.answer(f"⏳ Запрос на → **{html.quote(first_name)} {html.quote(last_name)}** отправлен.", reply_markup=get_student_main_keyboard(), parse_mode=ParseMode.HTML)
+        else: await message.answer("Не удалось отправить.", reply_markup=get_student_main_keyboard())
     except Exception as e: logger.error(f"Name change err {user_db_id}: {e}"); await message.answer("❌ Ошибка.", reply_markup=get_student_main_keyboard())
     finally: await state.clear()
 
@@ -395,7 +433,7 @@ async def handle_webapp_data(message: Message, bot: Bot, user_role: str, user_db
         if action == 'get_submission_file' and 'file_id' in data:
             fid = data['file_id']; sid = data.get('submission_id'); cap = f"Файл (сдача ID: {sid})"
             try: await bot.send_document(message.chat.id, fid, caption=cap)
-            except TelegramAPIError as e: logger.error(f"File forward err {fid}: {e}"); await message.answer(f"❌ Файл `{fid}`?")
+            except TelegramAPIError as e: logger.error(f"File fwd err {fid}: {e}"); await message.answer(f"❌ Файл `{fid}`?")
 
         elif action == 'send_assignment_to_group' and all(k in data for k in ['group_id', 'title', 'assignment_id']):
             gid = data['group_id']; title = data['title']; desc = data.get('description',''); due = data.get('due_date')
@@ -411,7 +449,7 @@ async def handle_webapp_data(message: Message, bot: Bot, user_role: str, user_db
             payload = {'document': fid, 'caption': text, 'parse_mode': ParseMode.HTML} if fid else {'text': text, 'parse_mode': ParseMode.HTML}
             s, f = 0, 0
             for st in students:
-                try: await send_method(st['telegram_id'], **payload); s += 1; await asyncio.sleep(0.05) # Rate limit
+                try: await send_method(st['telegram_id'], **payload); s += 1; await asyncio.sleep(0.05)
                 except TelegramAPIError as e: logger.warning(f"Send assign {aid} to {st['telegram_id']} fail: {e}"); f += 1
             await message.answer(f"Задание {aid} отправлено {s} студентам. Ошибок: {f}.")
 

@@ -145,22 +145,21 @@ async def reject_name_change(conn: asyncpg.Connection, user_id: int) -> bool:
     return result is not None
 
 async def update_user_name(conn: asyncpg.Connection, user_id: int, first_name: str, last_name: str) -> bool:
-    # Используется только при одобрении запроса
     query = "UPDATE users SET first_name = $1, last_name = $2 WHERE user_id = $3"
     status = await conn.execute(query, first_name, last_name, user_id)
     return status == 'UPDATE 1'
 
-async def add_assignment_and_notify_bot(conn: asyncpg.Connection, group_id: int, title: str, created_by: int, description: Optional[str]=None, due_date: Optional[datetime]=None, file_id: Optional[str]=None, file_type: Optional[str]=None) -> Dict:
+async def add_assignment(conn: asyncpg.Connection, group_id: int, title: str, created_by: int, description: Optional[str]=None, due_date: Optional[datetime]=None, file_id: Optional[str]=None, file_type: Optional[str]=None) -> Dict:
     query = """
-    INSERT INTO assignments (group_id, title, description, due_date, created_by, file_id, file_type)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING assignment_id, group_id, title, description, due_date, file_id, file_type;
+    INSERT INTO assignments (group_id, title, description, due_date, created_by, file_id, file_type, accepting_submissions)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+    RETURNING assignment_id, group_id, title, description, due_date, file_id, file_type, accepting_submissions;
     """
     result = await conn.fetchrow(query, group_id, title, description, due_date, created_by, file_id, file_type)
     return _record_to_dict(result)
 
 async def get_assignment(conn: asyncpg.Connection, assignment_id: int) -> Optional[Dict]:
-    query = "SELECT *, (due_date < CURRENT_TIMESTAMP) as is_deadline_passed FROM assignments WHERE assignment_id = $1"
+    query = "SELECT * FROM assignments WHERE assignment_id = $1"
     result = await conn.fetchrow(query, assignment_id)
     return _record_to_dict(result)
 
@@ -178,17 +177,18 @@ async def add_submission(conn: asyncpg.Connection, assignment_id: int, student_u
     async with conn.transaction():
         assignment = await conn.fetchrow("SELECT due_date FROM assignments WHERE assignment_id = $1 FOR UPDATE", assignment_id)
         due_date = assignment['due_date'] if assignment else None
-        is_late = due_date is not None and datetime.now(due_date.tzinfo) > due_date
+        now_aware = datetime.now(due_date.tzinfo if due_date else None)
+        is_late = due_date is not None and now_aware > due_date
 
         query = """
         INSERT INTO submissions (assignment_id, student_id, file_id, submission_date, is_late, submitted, grade, score1, score2, graded_by, grade_date, teacher_comment)
-        VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, TRUE, NULL, NULL, NULL, NULL, NULL, NULL)
+        VALUES ($1, $2, $3, $4, $5, TRUE, NULL, NULL, NULL, NULL, NULL, NULL)
         ON CONFLICT (assignment_id, student_id) DO UPDATE SET
-            file_id = EXCLUDED.file_id, submission_date = CURRENT_TIMESTAMP, is_late = EXCLUDED.is_late, submitted = TRUE,
+            file_id = EXCLUDED.file_id, submission_date = EXCLUDED.submission_date, is_late = EXCLUDED.is_late, submitted = TRUE,
             grade = NULL, score1 = NULL, score2 = NULL, graded_by = NULL, grade_date = NULL, teacher_comment = NULL
         RETURNING submission_id, assignment_id, student_id, submission_date, is_late;
         """
-        result = await conn.fetchrow(query, assignment_id, student_user_id, file_id, is_late)
+        result = await conn.fetchrow(query, assignment_id, student_user_id, file_id, now_aware, is_late)
         return _record_to_dict(result)
 
 async def get_submissions_for_assignment(conn: asyncpg.Connection, assignment_id: int) -> List[Dict]:
@@ -225,29 +225,23 @@ async def save_attendance(conn: asyncpg.Connection, group_id: int, attendance_da
     ])
 
 async def add_question(conn: asyncpg.Connection, student_id: int, group_id: Optional[int], question_text: str) -> Dict:
-    query = """
-    INSERT INTO questions (student_id, group_id, question_text) VALUES ($1, $2, $3)
-    RETURNING question_id;
-    """
+    query = "INSERT INTO questions (student_id, group_id, question_text) VALUES ($1, $2, $3) RETURNING question_id;"
     result = await conn.fetchrow(query, student_id, group_id, question_text)
     return _record_to_dict(result)
 
-async def get_questions(conn: asyncpg.Connection, answered: Optional[bool]=False) -> List[Dict]:
+async def get_questions(conn: asyncpg.Connection, answered: Optional[bool]=None) -> List[Dict]:
     base_query = """
     SELECT q.*, s.first_name AS student_first_name, s.last_name AS student_last_name, g.name AS group_name,
-           a.first_name AS answerer_first_name, a.last_name AS answerer_last_name, s.telegram_id AS student_telegram_id
+           a.first_name AS answerer_name, s.telegram_id AS student_telegram_id
     FROM questions q JOIN users s ON q.student_id = s.user_id
     LEFT JOIN groups g ON q.group_id = g.group_id
     LEFT JOIN users a ON q.answered_by = a.user_id
     """
-    conditions = []
-    params = []
+    conditions = []; params = []
     if answered is False: conditions.append("q.answered_at IS NULL")
     elif answered is True: conditions.append("q.answered_at IS NOT NULL")
-
     if conditions: base_query += " WHERE " + " AND ".join(conditions)
     base_query += " ORDER BY q.asked_at DESC;"
-
     return _records_to_list_dicts(await conn.fetch(base_query, *params))
 
 async def add_answer(conn: asyncpg.Connection, question_id: int, answer_text: str, teacher_user_id: int) -> Optional[Dict]:
@@ -257,7 +251,15 @@ async def add_answer(conn: asyncpg.Connection, question_id: int, answer_text: st
     RETURNING question_id, student_id, question_text, answer_text;
     """
     result = await conn.fetchrow(query, answer_text, teacher_user_id, question_id)
+    # Fetch student telegram_id to notify
+    if result:
+        student_info = await get_user_by_db_id(conn, result['student_id'])
+        if student_info:
+            result_dict = _record_to_dict(result)
+            result_dict['student_telegram_id'] = student_info['telegram_id']
+            return result_dict
     return _record_to_dict(result)
+
 
 async def get_users(conn: asyncpg.Connection, approved: Optional[bool]=None, role: Optional[str]=None, group_id: Optional[int]=None) -> List[Dict]:
     base_query = """
@@ -299,8 +301,7 @@ async def set_user_role(conn: asyncpg.Connection, user_id: int, role: str) -> Op
 
 async def get_teachers_ids(db_pool: asyncpg.Pool) -> List[int]:
     query = "SELECT u.telegram_id FROM users u JOIN teachers t ON u.user_id = t.teacher_id WHERE u.approved = TRUE;"
-    async with db_pool.acquire() as conn:
-        results = await conn.fetch(query)
+    async with db_pool.acquire() as conn: results = await conn.fetch(query)
     return [r['telegram_id'] for r in results]
 
 async def get_grades_for_student(conn: asyncpg.Connection, student_user_id: int) -> List[Dict]:

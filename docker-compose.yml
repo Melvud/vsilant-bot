@@ -1,6 +1,3 @@
-# docker-compose.yml
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
@@ -33,13 +30,13 @@ services:
     env_file:
       - .env
     ports:
-      # Пробрось порт твоего бэкенда веб-приложения на хост, чтобы ngrok мог к нему подключиться
-      # Пример, если бэкенд работает на порту 8080 внутри контейнера:
-      - "8080:8080"
+      # Пробрось порт для бэкенда WebApp, если он работает в этом контейнере
+      - "8080:8080" # Пример для порта 8080
     restart: unless-stopped
     networks:
       - student-bot-network
-    # Если нужно запускать несколько процессов (бот + бэкенд), используй command:
+    # Если CMD в Dockerfile недостаточно (нужно запустить бэкенд + бота),
+    # можно использовать 'command:' здесь, например:
     # command: sh -c "python backend.py & python client.py"
 
 volumes:
