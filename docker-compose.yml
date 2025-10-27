@@ -10,7 +10,7 @@ services:
       - dbdata:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "5432:5432" # Опционально: для доступа к БД с хоста
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d phe"]
       interval: 5s
@@ -30,14 +30,11 @@ services:
     env_file:
       - .env
     ports:
-      # Пробрось порт для бэкенда WebApp, если он работает в этом контейнере
-      - "8080:8080" # Пример для порта 8080
+      - "8080:8080" # Порт для backend.py
     restart: unless-stopped
     networks:
       - student-bot-network
-    # Если CMD в Dockerfile недостаточно (нужно запустить бэкенд + бота),
-    # можно использовать 'command:' здесь, например:
-    # command: sh -c "python backend.py & python client.py"
+    # CMD из Dockerfile запустит оба скрипта
 
 volumes:
   dbdata:

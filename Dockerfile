@@ -13,9 +13,8 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY client.py api.py schema.sql webapp.html ./
-# Если у тебя есть файл бэкенда (например, backend.py), добавь его сюда:
-# COPY backend.py ./
+# Копируем все нужные файлы
+COPY client.py api.py schema.sql webapp.html backend.py ./
 
-# Убедись, что CMD правильный. Если нужно запускать и бэкенд, измени его.
-CMD ["python", "-u", "client.py"]
+# Используем CMD для запуска обоих скриптов
+CMD sh -c "python -u backend.py & python -u client.py && wait"

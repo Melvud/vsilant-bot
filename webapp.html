@@ -1,703 +1,1840 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-bs-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Админ-панель</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --tg-theme-bg-color: #ffffff;
-            --tg-theme-text-color: #000000;
-            --tg-theme-hint-color: #999999;
-            --tg-theme-link-color: #007bff;
-            --tg-theme-button-color: #007bff;
-            --tg-theme-button-text-color: #ffffff;
-            --tg-theme-secondary-bg-color: #f8f9fa;
-        }
-        body { padding: 10px; background-color: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); font-size: 14px; padding-top: 65px; } /* Added padding-top */
-        .nav-link { color: var(--tg-theme-link-color); padding: 0.5rem 0.8rem; font-size: 0.9rem; }
-        .nav-link.active { color: var(--tg-theme-text-color); background-color: var(--tg-theme-secondary-bg-color); }
-        .form-control, .form-select { background-color: var(--tg-theme-secondary-bg-color); color: var(--tg-theme-text-color); border-color: var(--tg-theme-hint-color); font-size: 0.9rem; }
-        .form-control::placeholder { color: var(--tg-theme-hint-color); }
-        .btn { background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border: none; font-size: 0.9rem; }
-        .btn-secondary { background-color: #6c757d; }
-        .btn-success { background-color: #198754; }
-        .btn-danger { background-color: #dc3545; }
-        .btn-warning { background-color: #ffc107; color: #000;}
-        .btn-sm { padding: 0.2rem 0.4rem; font-size: 0.8rem; }
-        .list-group-item { background-color: var(--tg-theme-secondary-bg-color); border-color: var(--tg-theme-hint-color); padding: 0.75rem; }
-        .loading { text-align: center; padding: 15px; color: var(--tg-theme-hint-color); }
-        .form-label { margin-bottom: 0.3rem; font-weight: bold;}
-        .student-attendance-row span { margin-right: 10px; }
-        .statistic-item { margin-bottom: 5px; }
-        .nav-pills { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 5px;}
-        .nav-pills .nav-link { white-space: nowrap; }
-        .tab-pane { padding-top: 10px;}
-        #groupSelectorContainer { position: fixed; top: 0; left: 0; right: 0; background-color: var(--tg-theme-bg-color); padding: 10px; z-index: 1000; border-bottom: 1px solid var(--tg-theme-hint-color); display: flex; align-items: center;}
-        .form-check-input:checked { background-color: var(--tg-theme-button-color); border-color: var(--tg-theme-button-color); }
-        .late-submission { color: orange; font-weight: bold; }
-        .missing-submission { color: red; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+  <title>Админ-панель</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --primary: #4c8bf5; --primary-light: #6fa3ff; --primary-dark: #3a68d9;
+      --success: #31a24c; --warning: #f59e0b; --danger: #ef4444;
+      --bg: #f8f9fa; --bg-secondary: #ffffff; --fg: #1f2937; --fg-muted: #6b7280; --border: #e5e7eb;
+      --card-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06);
+      --card-shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1);
+    }
+
+    html, body { height: 100%; background: linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%); color: var(--fg); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; min-height: 100vh; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; } /* Added height for horizontal */
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .appbar { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg,#fff 0%,#f8f9fa 100%); border-bottom: 2px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,.05); padding: .75rem 0; }
+    .appbar .brand { font-weight: 700; letter-spacing: .5px; color: var(--fg); display: flex; align-items: center; gap: .5rem; font-size: 1.1rem; }
+    .appbar .brand i { font-size: 1.3rem; color: var(--primary); }
+
+    .card { background: var(--bg-secondary); border: 1.5px solid var(--border); border-radius: 12px; box-shadow: var(--card-shadow); transition: all .3s ease; }
+    .card:hover { box-shadow: var(--card-shadow-lg); transform: translateY(-2px); }
+    .card p { margin: 0; color: var(--fg); }
+
+    /* General Nav Scroller Style */
+    .nav-scroller {
+      position: relative; /* Changed from sticky */
+      z-index: 2;
+      background: rgba(255,255,255,.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      padding: .5rem 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch; /* For smooth scrolling on iOS */
+    }
+    .nav-scroller::-webkit-scrollbar { height: 4px; }
+
+    /* Main Nav Scroller */
+    .main-nav-scroller {
+        position: sticky;
+        top: 62px; /* Height of the appbar */
+        z-index: 40;
+    }
+
+    /* Material Nav Scroller (no sticky) */
+    .material-nav-scroller {
+        margin-bottom: 1rem; /* Add some space below */
+    }
+
+
+    .nav-pills { display: flex; flex-wrap: nowrap; gap: .5rem; margin-bottom: 0; /* Override default bootstrap margin */ }
+    .nav-pills .nav-link { color: var(--fg-muted); border-radius: 999px; padding: .45rem .9rem; font-weight: 600; transition: all .2s ease; border: none; white-space: nowrap; font-size: .9rem; }
+    .nav-pills .nav-link i { margin-right: .3rem; }
+    .nav-pills .nav-link:hover { color: var(--primary); background: rgba(76,139,245,.08); }
+    .nav-pills .nav-link.active { color: #fff; background: linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%); box-shadow: 0 4px 12px rgba(76,139,245,.3); }
+
+    .form-control, .form-select { background: var(--bg-secondary); color: var(--fg); border: 1.5px solid var(--border); border-radius: 10px; padding: .6rem .9rem; transition: all .2s ease; font-size: .93rem; }
+    .form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(76,139,245,.1); background: var(--bg-secondary); }
+    .form-control::placeholder { color: #9ca3af; }
+    .form-label { color: var(--fg); font-weight: 700; margin-bottom: .45rem; font-size: .95rem; letter-spacing: .2px; }
+    textarea.form-control { resize: vertical; min-height: 100px; }
+
+    .btn { border-radius: 10px; font-weight: 700; padding: .45rem .9rem; transition: all .2s ease; border: none; font-size: .9rem; }
+    .btn-compact { padding: .38rem .8rem; font-size: .85rem; }
+    .btn-primary { background: linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%); color:#fff; box-shadow: 0 4px 12px rgba(76,139,245,.25); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(76,139,245,.35); }
+    .btn-outline-secondary { border: 1.5px solid var(--border); color: var(--fg); background: var(--bg-secondary); }
+    .btn-outline-secondary:hover { border-color: var(--primary); color: var(--primary); background: rgba(76,139,245,.05); }
+    .btn-success { background: linear-gradient(135deg,var(--success) 0%,#2a8a3a 100%); color:#fff; }
+    .btn-warning { background: linear-gradient(135deg,var(--warning) 0%,#d97706 100%); color:#fff; }
+    .btn-sm { padding: .32rem .65rem; font-size: .82rem; border-radius: 8px; }
+
+    .badge-soft { background: rgba(76,139,245,.1); color: var(--primary); border: 1px solid rgba(76,139,245,.3); padding: .25rem .6rem; border-radius: 20px; font-weight: 600; font-size: .75rem; }
+    .badge { border-radius: 6px; padding: .4rem .8rem; }
+
+    .file-chip { display: inline-flex; align-items: center; gap: .5rem; padding: .45rem .7rem; margin: .25rem .25rem 0 0; border: 1.5px dashed var(--primary); background: rgba(76,139,245,.08); border-radius: 10px; font-size: .85rem; color: var(--fg); font-weight: 600; }
+    .file-chip .btn-close { filter: none; opacity: .7; } .file-chip .btn-close:hover { opacity: 1; }
+
+    .section-title { font-weight: 800; font-size: 1.15rem; letter-spacing: .3px; color: var(--fg); margin-bottom: 1rem; }
+    .section-subtitle { font-weight: 700; font-size: .95rem; color: var(--fg-muted); margin-top: 1rem; margin-bottom: .5rem; }
+    .muted { color: var(--fg-muted); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
+    @media (min-width: 992px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+    .list-group { gap: .6rem; }
+    .list-group-item { background: var(--bg-secondary); color: var(--fg); border: 1.5px solid var(--border); border-radius: 12px; padding: .9rem 1rem; transition: all .2s ease; }
+    .list-group-item:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(76,139,245,.1); }
+    .list-group-item strong { color: var(--fg); font-weight: 800; }
+
+    .status-success { color: var(--success); font-weight: 700; }
+    .status-warning { color: var(--warning); font-weight: 700; }
+    .status-danger  { color: var(--danger);  font-weight: 700; }
+
+    .spinner-border { border-color: rgba(76,139,245,.2); border-right-color: var(--primary); }
+
+    main { padding-bottom: 2rem; }
+    .tab-pane { animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 576px) {
+      .appbar .container { padding-left: 1rem; padding-right: 1rem; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .section-title { font-size: 1.02rem; }
+      .group-selector { flex-direction: column; align-items: flex-start !important; }
+      .nav-pills .nav-link { padding: .35rem .75rem; font-size: .86rem; }
+    }
+
+    .alert { border-radius: 10px; border: 1px solid; padding: .9rem; }
+    .alert-info { background: rgba(59,130,246,.1); border-color: rgba(59,130,246,.3); color: #1e40af; }
+
+    .input-group { gap: .5rem; }
+    .input-group > .form-control, .input-group > .form-select { border-radius: 10px; }
+
+    .group-selector { display: flex; align-items: center; gap: .5rem; }
+    .group-selector label { margin: 0; font-size: .85rem; font-weight: 700; color: var(--fg-muted); }
+    .group-selector select { min-width: 150px; font-size: .85rem; padding: .4rem .8rem; }
+
+    /* ===== Посещаемость (кастомный тумблер) ===== */
+    .att-toggle { position: absolute; opacity: 0; pointer-events: none; }
+    .att-switch { width: 56px; height: 28px; border-radius: 999px; background: #e6e9ef; border: 1px solid #d5dae3; position: relative; display: inline-block; transition: all .2s ease; box-shadow: inset 0 1px 0 rgba(0,0,0,.03); }
+    .att-switch::after{ content:""; position:absolute; top:2.5px; left:2.5px; width:23px; height:23px; border-radius: 50%; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); transition: transform .22s ease; }
+    .att-toggle:checked + .att-switch{ background: linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%); border-color: transparent; }
+    .att-toggle:checked + .att-switch::after{ transform: translateX(28px); }
+    .att-switch.small { width: 50px; height: 26px; } .att-switch.small::after { width:21px; height:21px; }
+    .att-row{ display:flex; align-items:center; justify-content:space-between; gap:.8rem; padding:.8rem .9rem; border:1px solid var(--border); border-radius:12px; background:#fff; }
+    .att-name{ font-weight:800; } .att-id{ font-size:.8rem; color:var(--fg-muted); margin-top:.1rem; }
+  </style>
 </head>
 <body>
 
-<div class="container-fluid">
+  <div class="appbar">
+    <div class="container d-flex align-items-center justify-content-between">
+      <div class="brand">
+        <i class="bi bi-mortarboard-fill"></i>
+        <span>Админ-панель</span>
+      </div>
 
-    <div id="groupSelectorContainer">
-        <label for="groupSelector" class="form-label me-2 mb-0">Группа:</label>
-        <select id="groupSelector" class="form-select form-select-sm" onchange="handleGroupChange(this.value)">
-            <option value="">Загрузка...</option>
-        </select>
+      <div class="group-selector">
+        <label for="groupSelect">Группа:</label>
+        <select id="groupSelect" class="form-select form-select-sm"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-scroller main-nav-scroller">
+    <div class="container">
+      <ul class="nav nav-pills" id="tabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-att" type="button"><i class="bi bi-clipboard2-check"></i>Посещаемость</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-assign" type="button"><i class="bi bi-card-checklist"></i>Задания</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-materials" type="button"><i class="bi bi-collection-play"></i>Материалы</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-activity" type="button"><i class="bi bi-bar-chart-steps"></i>Активность</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-subm" type="button"><i class="bi bi-journal-check"></i>Оценки</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-qa" type="button"><i class="bi bi-chat-left-text"></i>Q&amp;A</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-users" type="button"><i class="bi bi-people"></i>Студенты</button></li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-approvals" type="button">
+            <i class="bi bi-inbox"></i>Заявки <span id="badgeApprovals" class="badge badge-soft d-none"></span>
+          </button>
+        </li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-groups" type="button"><i class="bi bi-diagram-3"></i>Группы</button></li>
+      </ul>
+    </div>
+  </div>
+
+  <main class="container my-4">
+
+    <div id="deny" class="d-none">
+      <div class="card p-4">
+        <h5 class="mb-2"><i class="bi bi-shield-lock"></i> Доступ запрещён</h5>
+        <p class="text-muted mb-2">Эта панель доступна только администраторам.</p>
+        <p class="text-muted mb-0">Убедитесь, что ваш ID добавлен в ADMIN_IDS.</p>
+      </div>
     </div>
 
-    <ul class="nav nav-pills mb-3" id="adminTab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="attendance-tab" data-bs-toggle="tab" data-bs-target="#attendance" type="button" role="tab">Посещ.</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="assignments-tab" data-bs-toggle="tab" data-bs-target="#assignments" type="button" role="tab">Задания</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="submissions-tab" data-bs-toggle="tab" data-bs-target="#submissions" type="button" role="tab">Оценки</button>
-        </li>
-         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="qa-tab" data-bs-toggle="tab" data-bs-target="#qa" type="button" role="tab">Q&A</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Студенты</button>
-        </li>
-         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals" type="button" role="tab">Заявки <span id="approvalBadge" class="badge bg-danger ms-1" style="display: none;"></span></button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups" type="button" role="tab">Группы</button>
-        </li>
-    </ul>
+    <div id="ok" class="tab-content">
 
-    <div class="tab-content" id="adminTabContent">
+      <div class="tab-pane fade show active" id="tab-att">
+        <div class="card p-4">
+          <h5 class="section-title mb-3"><i class="bi bi-clipboard2-check text-primary"></i> Посещаемость</h5>
 
-        <div class="tab-pane fade show active" id="attendance" role="tabpanel">
-            <h2>Посещаемость (<span class="current-group-name"></span>)</h2>
-            <div class="mb-3 d-flex align-items-center">
-                 <label for="attendanceDate" class="form-label me-2 mb-0">Дата:</label>
-                 <input type="date" id="attendanceDate" class="form-control form-control-sm w-auto me-2">
-                 <button class="btn btn-sm btn-secondary" onclick="loadAttendance()">Загрузить</button>
+          <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+            <div style="min-width: 220px;">
+              <label class="form-label">Дата</label>
+              <input id="attDate" class="form-control" type="date">
             </div>
-            <div id="attendanceList">
-                <div class="loading">Выберите группу и дату.</div>
+
+            <div class="d-flex align-items-center gap-2">
+              <input id="attSelectAll" type="checkbox" class="att-toggle">
+              <label class="att-switch small" for="attSelectAll" title="Отметить всех"></label>
+              <div class="fw-semibold text-muted" style="font-size:.9rem;">Отметить всех</div>
             </div>
-             <button class="btn btn-primary mt-2" id="saveAttendanceBtn" style="display: none;" onclick="saveAttendance()">Сохранить отметки</button>
+
+            <div class="ms-auto d-flex align-items-end gap-2">
+              <button class="btn btn-outline-secondary btn-compact" id="btnLoadAttendance">
+                <i class="bi bi-arrow-repeat"></i> Загрузить
+              </button>
+              <button class="btn btn-primary btn-compact" id="btnSaveAttendance">
+                <i class="bi bi-save2"></i> Сохранить
+              </button>
+            </div>
+          </div>
+
+          <div id="attList" class="list-group"></div>
         </div>
+      </div>
 
-        <div class="tab-pane fade" id="assignments" role="tabpanel">
-            <h2>Задания для группы <span class="current-group-name"></span></h2>
-             <div class="mb-3 border p-2 rounded">
-                <h5>Новое задание</h5>
-                <input type="text" id="assignmentTitle" class="form-control mb-2" placeholder="Название задания">
-                <textarea id="assignmentDescription" class="form-control mb-2" rows="3" placeholder="Описание задания"></textarea>
-                <label for="assignmentFile" class="form-label">Файл (опционально, 1 шт.):</label>
-                <input type="file" id="assignmentFile" class="form-control mb-2">
-                <label for="assignmentDueDate" class="form-label">Срок сдачи (опционально):</label>
-                <input type="datetime-local" id="assignmentDueDate" class="form-control mb-2">
-                <button class="btn btn-primary" onclick="sendAssignment()">Отправить задание группе</button>
-            </div>
-            <hr>
-             <h5>Существующие задания для группы <span class="current-group-name"></span></h5>
-             <div id="assignmentsList">
-                 <div class="loading">Загрузка заданий...</div>
-             </div>
-        </div>
+      <div class="tab-pane fade" id="tab-assign">
+        <div class="grid-2">
+          <div class="card p-4">
+            <h5 class="section-title mb-3"><i class="bi bi-plus-circle text-primary"></i> Новое задание</h5>
 
-        <div class="tab-pane fade" id="submissions" role="tabpanel">
-            <h2>Оценки и Статистика (Группа <span class="current-group-name"></span>)</h2>
             <div class="mb-3">
-                <label for="submissionAssignmentSelect" class="form-label">Выберите задание:</label>
-                <select id="submissionAssignmentSelect" class="form-select mb-2" onchange="loadSubmissionsForAssignment(this.value)">
-                    <option value="">Выберите задание...</option>
-                </select>
+              <label class="form-label">Название</label>
+              <input id="aTitle" class="form-control" placeholder="Например: Лабораторная №3">
             </div>
-             <div id="submissionControls" class="mb-3" style="display: none;">
-                 <button class="btn btn-sm btn-warning" onclick="toggleAcceptSubmissions()">Закрыть/Открыть прием работ</button>
-                 <span id="acceptingStatus" class="ms-2"></span>
-             </div>
-             <div id="submissionStats" class="mb-3"></div>
-            <div id="submissionsList"></div>
+
+            <div class="mb-3">
+              <label class="form-label">Описание</label>
+              <textarea id="aDesc" class="form-control" placeholder="Краткие инструкции для студентов..."></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label d-flex justify-content-between">
+                <span>Файлы</span>
+                <small class="muted">можно выбрать несколько</small>
+              </label>
+              <input id="aFiles" type="file" class="form-control" multiple
+                     accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.ppt,.pptx,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+              <div id="fileChips" class="mt-2"></div>
+              <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="btnUploadFiles">
+                <i class="bi bi-cloud-arrow-up"></i> Загрузить файлы
+              </button>
+              <div id="uploadHint" class="alert alert-info mt-2 d-none mb-0">
+                <i class="bi bi-check-circle"></i> Файлы загружены на сервер
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Срок сдачи (опционально)</label>
+              <input id="aDue" class="form-control" type="datetime-local">
+            </div>
+
+            <div class="d-flex gap-2">
+              <button id="btnSendAssignment" type="button" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-send-check"></i> Отправить группе
+              </button>
+              <button id="btnClearForm" type="button" class="btn btn-outline-secondary">
+                <i class="bi bi-eraser"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="card p-4">
+            <h5 class="section-title mb-3"><i class="bi bi-list-check text-primary"></i> Задания группы</h5>
+            <div id="assignList" class="list-group">
+              <div class="list-group-item muted text-center py-4">
+                <i class="bi bi-hourglass-split"></i> Загрузка…
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-         <div class="tab-pane fade" id="qa" role="tabpanel">
-             <h2>Вопросы от студентов</h2>
-             <div class="mb-2">
-                 <button class="btn btn-sm btn-secondary" onclick="loadQuestions(false)">Неотвеченные</button>
-                 <button class="btn btn-sm btn-secondary" onclick="loadQuestions(true)">Все</button>
-             </div>
-             <div id="questionsList">
-                 <div class="loading">Загрузка вопросов...</div>
-             </div>
-         </div>
+      <div class="tab-pane fade" id="tab-materials">
 
-        <div class="tab-pane fade" id="users" role="tabpanel">
-            <h2>Студенты группы <span class="current-group-name"></span></h2>
-            <div id="studentsListGroup" class="list-group">
-                <div class="loading">Загрузка студентов...</div>
+        <div class="nav-scroller material-nav-scroller">
+            <div class="container px-0"> <ul class="nav nav-pills" id="materialsTabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-category="lectures" type="button"><i class="bi bi-easel3"></i> Lectures</button></li>
+                <li class="nav-item"><button class="nav-link" data-category="announcements" type="button"><i class="bi bi-megaphone"></i> Announcements</button></li>
+                <li class="nav-item"><button class="nav-link" data-category="figures" type="button"><i class="bi bi-bar-chart"></i> Figures</button></li>
+                <li class="nav-item"><button class="nav-link" data-category="video" type="button"><i class="bi bi-camera-reels"></i> Video</button></li>
+                <li class="nav-item"><button class="nav-link" data-category="links" type="button"><i class="bi bi-link-45deg"></i> Links</button></li>
+                <li class="nav-item"><button class="nav-link" data-category="library" type="button"><i class="bi bi-journal"></i> Library</button></li>
+                </ul>
             </div>
         </div>
 
-        <div class="tab-pane fade" id="approvals" role="tabpanel">
-             <h2>Ожидают подтверждения</h2>
-             <div id="pendingUsersList" class="list-group mb-4"></div>
-            <hr>
-            <h2>Запросы на смену группы/имени</h2>
-             <div id="pendingGroupChangesList" class="list-group mb-2"></div>
-             <div id="pendingNameChangesList" class="list-group"></div>
+        <div class="grid-2">
+          <div class="card p-4">
+            <h5 class="section-title mb-3"><i class="bi bi-plus-circle text-primary"></i> Новый материал (<span id="mCategoryLabel">Lectures</span>)</h5>
+            <input type="hidden" id="mCategory" value="lectures"> <div class="mb-3">
+              <label class="form-label">Заголовок</label>
+              <input id="mTitle" class="form-control" placeholder="Краткий заголовок">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Описание (необязательно)</label>
+              <textarea id="mDesc" class="form-control" placeholder="Краткий текст / пояснение…"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label d-flex justify-content-between">
+                <span>Файлы (можно несколько)</span>
+                <small class="muted">.pptx, .pdf, .docx, .png, .jpg ...</small>
+              </label>
+              <input id="mFiles" type="file" class="form-control" multiple
+                     accept=".ppt,.pptx,.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+              <div id="mFileChips" class="mt-2"></div>
+              <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="btnMUpload">
+                <i class="bi bi-cloud-arrow-up"></i> Загрузить файлы
+              </button>
+              <div id="mUploadHint" class="alert alert-info mt-2 d-none mb-0">
+                <i class="bi bi-check-circle"></i> Файлы загружены
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label d-flex justify-content-between">
+                <span>Ссылки (URL)</span>
+                <small class="muted">можно несколько</small>
+              </label>
+              <div class="input-group mb-2">
+                <input id="mLinkInput" class="form-control" placeholder="https://…">
+                <button class="btn btn-outline-secondary" id="btnAddLink"><i class="bi bi-plus-circle"></i></button>
+              </div>
+              <div id="mLinks" class="d-flex flex-wrap gap-2"></div>
+            </div>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" role="switch" id="mPin" checked>
+              <label class="form-check-label" for="mPin">Закрепить сообщение в чате группы</label>
+            </div>
+            <div class="d-flex gap-2">
+              <button id="btnSendMaterial" type="button" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-send-check"></i> Отправить материал
+              </button>
+              <button id="btnMClear" type="button" class="btn btn-outline-secondary"><i class="bi bi-eraser"></i></button>
+            </div>
+          </div>
+
+          <div class="card p-4">
+            <h5 class="section-title mb-3"><i class="bi bi-collection text-primary"></i> Материалы группы</h5>
+            <div id="materialsList" class="list-group">
+              <div class="list-group-item muted text-center py-4">
+                <i class="bi bi-hourglass-split"></i> Загрузка…
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="tab-pane fade" id="groups" role="tabpanel">
-            <h2>Управление группами</h2>
-            <div class="input-group mb-3">
-                <input type="text" id="newGroupName" class="form-control" placeholder="Название новой группы">
-                <button class="btn btn-primary" onclick="addGroup()">Добавить</button>
-            </div>
-            <div id="groupsList" class="list-group"></div>
         </div>
+      <div class="tab-pane fade" id="tab-activity">
+        <div class="card p-4">
+            <h5 class="section-title mb-3"><i class="bi bi-bar-chart-steps text-primary"></i> Активность студентов</h5>
+
+            <div class="mb-3" style="max-width: 400px;">
+                <label for="saGroupSelect" class="form-label">Группа:</label>
+                <select id="saGroupSelect" class="form-select"></select>
+            </div>
+
+            <div id="saSummary" class="mb-3"></div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Студент</th>
+                            <th scope="col">Посещаемость</th>
+                            <th scope="col">Задания</th>
+                            <th scope="col" class="text-end">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="saTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center muted py-4">
+                                <i class="bi bi-info-circle"></i> Выберите группу
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="tab-subm">
+        <div class="card p-4">
+          <h5 class="section-title mb-3"><i class="bi bi-graph-up text-primary"></i> Оценки и статистика</h5>
+
+          <div class="mb-3 d-flex gap-2 flex-wrap">
+            <select id="selAssignment" class="form-select" style="max-width: 420px;"></select>
+            <button class="btn btn-outline-secondary btn-compact" id="btnReloadSubm"><i class="bi bi-arrow-repeat"></i></button>
+            <div class="ms-auto d-flex align-items-center gap-2" id="acceptWrap" style="display:none;">
+              <span class="small muted" id="acceptState">—</span>
+              <button class="btn btn-warning btn-sm" id="btnToggleAccept"><i class="bi bi-door-open"></i> Открыть/Закрыть</button>
+            </div>
+          </div>
+
+          <div id="submStats" class="mb-3 p-3 bg-light rounded"></div>
+          <div id="submList" class="list-group"></div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-qa">
+        <div class="card p-4">
+          <h5 class="section-title mb-3"><i class="bi bi-chat-left-text text-primary"></i> Вопросы и ответы</h5>
+
+          <div class="d-flex gap-2 mb-4">
+            <button class="btn btn-outline-secondary btn-sm" id="btnQaUnanswered"><i class="bi bi-filter-circle"></i> Неотвеченные</button>
+            <button class="btn btn-outline-secondary btn-sm" id="btnQaAll"><i class="bi bi-collection"></i> Все</button>
+          </div>
+
+          <div id="qaList" class="list-group">
+            <div class="list-group-item muted text-center py-4">
+              <i class="bi bi-hourglass-split"></i> Загрузка…
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-users">
+        <div class="card p-4">
+          <h5 class="section-title mb-3"><i class="bi bi-people text-primary"></i> Студенты</h5>
+          <div id="userList" class="list-group">
+            <div class="list-group-item muted text-center py-4">
+              <i class="bi bi-hourglass-split"></i> Загрузка…
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-approvals">
+        <div class="grid-2">
+          <div class="card p-4">
+            <h5 class="section-title mb-3"><i class="bi bi-person-check text-primary"></i> Новые пользователи</h5>
+            <div id="approveUsers" class="list-group"></div>
+          </div>
+
+          <div class="card p-4">
+            <h5 class="section-title mb-3"><i class="bi bi-arrow-left-right text-primary"></i> Запросы изменений</h5>
+
+            <div class="section-subtitle">Смена группы</div>
+            <div id="approveGroups" class="list-group mb-4"></div>
+
+            <div class="section-subtitle">Смена имени</div>
+            <div id="approveNames" class="list-group"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-groups">
+        <div class="card p-4">
+          <h5 class="section-title mb-3"><i class="bi bi-diagram-3 text-primary"></i> Управление группами</h5>
+
+          <div class="input-group mb-4">
+            <input id="newGroupName" class="form-control" placeholder="Название новой группы">
+            <button class="btn btn-primary" id="btnAddGroup"><i class="bi bi-plus-circle"></i> Добавить</button>
+          </div>
+
+          <div id="groupsList" class="list-group"></div>
+        </div>
+      </div>
 
     </div>
+  </main>
 
-</div>
+  <div class="offcanvas offcanvas-bottom" tabindex="-1" id="saStudentModal" aria-labelledby="saStudentModalLabel" style="height: 85vh; border-top-left-radius: 12px; border-top-right-radius: 12px;">
+      <div class="offcanvas-header border-bottom">
+          <div>
+              <h5 class="offcanvas-title" id="saStudentModalLabel">Детали по студенту</h5>
+              <div id="saStudentHeader" class="small muted">...</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+          
+          <h6 class="section-subtitle">Посещаемость (по датам)</h6>
+          <div id="saStudentAttendance" class="list-group" style="max-height: 300px; overflow-y: auto;">
+              <div class="list-group-item muted text-center">Загрузка...</div>
+          </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+          <h6 class="section-subtitle mt-4">Выполнение заданий</h6>
+          <div id="saStudentAssignments">
+              <div class="list-group-item muted text-center">Загрузка...</div>
+          </div>
 
-<script>
-    const tg = window.Telegram.WebApp;
-    const initData = tg.initDataUnsafe || {};
-    const currentUser = initData.user || {};
-    const API_BASE_URL = '/api';
+      </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    let currentGroupId = localStorage.getItem('currentGroupId') || null;
-    let studentsForAttendance = [];
-    let studentsForGroupManagement = [];
-    let assignmentsForGroup = [];
-    let submissionsForAssignment = [];
-    let questionsData = [];
-    let currentAssignmentAccepting = true;
+  <script>
+    // === TELEGRAM ===
+    const tg = window.Telegram?.WebApp;
+    if (!tg) {
+      document.body.innerHTML = '<div style="padding: 20px; text-align: center;"><h1>❌ Ошибка</h1><p>Открывайте админ-панель из Telegram бота!</p></div>';
+    } else { tg.ready(); tg.expand(); }
 
-    async function apiRequest(endpoint, method = 'GET', body = null, isFormData = false) {
-        tg.MainButton.showProgress();
-        try {
-            const headers = { 'Telegram-Init-Data': tg.initData };
-            if (!isFormData && body) {
-                headers['Content-Type'] = 'application/json';
-            }
+    // === STATE ===
+    const API = '/api';
+    let currentGroupId = localStorage.getItem('currentGroupId') || '';
+    let queuedFiles = [];       // для Заданий
+    let uploadedFiles = [];
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: method, headers: headers,
-                body: isFormData ? body : (body ? JSON.stringify(body) : null),
-            });
+    // Материалы — отдельные состояния (для ЕДИНОЙ формы)
+    let mQueuedFiles = [];
+    let mUploadedFiles = [];
+    let mLinks = [];
+    // Категории материалов (для отображения заголовка формы)
+    const materialCategoryNames = {
+        lectures: 'Lectures',
+        announcements: 'Announcements',
+        figures: 'Figures',
+        video: 'Video',
+        links: 'Links',
+        library: 'Library'
+    };
 
-            if (!response.ok) {
-                let errorData = { detail: response.statusText };
-                try { errorData = await response.json(); } catch (e) {}
-                throw new Error(errorData.detail || `HTTP error ${response.status}`);
-            }
-            return response.status === 204 ? null : await response.json();
-        } catch (error) {
-            console.error('API Error:', method, endpoint, error);
-            tg.showAlert(`Ошибка API: ${error.message || 'Неизвестная ошибка'}`);
-            return null;
-        } finally {
-            tg.MainButton.hideProgress();
+
+    // === ACCESS CHECK ===
+    async function requireTeacher() {
+      const res = await fetch(API + '/me', {
+        headers: {
+          'X-Telegram-Init-Data': tg?.initData || '',
+          'Telegram-Init-Data': tg?.initData || ''
+        }
+      });
+      if (!res.ok) { deny(); throw new Error('ACCESS'); }
+      const me = await res.json();
+      // Проверяем роль 'teacher', которую теперь корректно возвращает me_handler
+      // только для ADMIN_IDS
+      const ok = me && me.approved && me.role === 'teacher';
+      if (!ok) { deny(); throw new Error('ACCESS'); }
+    }
+    function deny(){ document.getElementById('ok').classList.add('d-none'); document.getElementById('deny').classList.remove('d-none'); }
+
+    // === UTILS ===
+    function fmtDT(x){ try{ return new Date(x).toLocaleString('ru-RU'); } catch { return x; } }
+    function haptic(type){ try{ tg?.HapticFeedback?.notificationOccurred?.(type || 'success'); }catch{} }
+    function el(id){ return document.getElementById(id); }
+
+    async function api(path, method='GET', body=null, isForm=false){
+      const headers = {
+        'X-Telegram-Init-Data': tg?.initData || '',
+        'Telegram-Init-Data': tg?.initData || ''
+      };
+      if (!isForm && body) headers['Content-Type'] = 'application/json';
+
+      try{
+        const res = await fetch(API + path, { method, headers, body: isForm ? body : (body ? JSON.stringify(body):null) });
+        const txt = await res.text();
+        let data = null;
+        try{ data = txt ? JSON.parse(txt) : null; }catch{ data = txt; }
+        if (!res.ok) throw new Error((data && data.detail) ? data.detail : `HTTP ${res.status}`);
+        return data;
+      }catch(e){
+        tg?.showAlert?.('❌ Ошибка: ' + (e.message || 'неизвестная'));
+        haptic('error');
+        return null;
+      }
+    }
+
+    // === GROUPS DROPDOWN ===
+    async function loadGroups(){
+      const groups = await api('/groups');
+      const sel = el('groupSelect');
+      sel.innerHTML = '';
+      if (!groups){ sel.innerHTML = '<option value="">Ошибка загрузки</option>'; return; }
+      sel.insertAdjacentHTML('beforeend','<option value="">Выберите группу…</option>');
+      for (const g of groups){ sel.insertAdjacentHTML('beforeend', `<option value="${g.group_id}">${g.name}</option>`); }
+      if (currentGroupId && [...sel.options].some(o => o.value==String(currentGroupId))){ sel.value = String(currentGroupId); } else { currentGroupId = ''; localStorage.removeItem('currentGroupId'); }
+    }
+
+    // === INIT ===
+    document.addEventListener('DOMContentLoaded', async () => {
+      try { await requireTeacher(); } catch { return; }
+
+      el('attDate').value = new Date().toISOString().slice(0,10);
+
+      el('groupSelect').addEventListener('change', async (e)=>{
+        currentGroupId = e.target.value || '';
+        if (currentGroupId) localStorage.setItem('currentGroupId', currentGroupId);
+        else localStorage.removeItem('currentGroupId');
+        // Обновляем селект группы во вкладке Активность
+        const saSel = el('saGroupSelect');
+        if (saSel) saSel.value = currentGroupId;
+        await refreshActiveTab();
+      });
+
+      // Attendance controls
+      el('btnLoadAttendance').onclick = loadAttendance;
+      el('btnSaveAttendance').onclick = saveAttendance;
+      el('attSelectAll').onchange = ()=>{
+        const on = el('attSelectAll').checked;
+        document.querySelectorAll('#attList .att-toggle').forEach(i=> i.checked = on);
+      };
+
+      // Assignment form
+      el('btnUploadFiles').onclick = uploadQueued;
+      el('btnSendAssignment').onclick = sendAssignment;
+      el('btnClearForm').onclick = clearAssignmentForm;
+      el('aFiles').addEventListener('change', (e)=>{
+        queuedFiles = [...e.target.files];
+        redrawChips();
+        el('uploadHint').classList.add('d-none');
+        uploadedFiles = [];
+      });
+
+      // Submissions
+      el('btnReloadSubm').onclick = loadSubmissions;
+      el('btnToggleAccept').onclick = toggleAccept;
+
+      // Q&A & Groups
+      el('btnQaUnanswered').onclick = ()=>loadQuestions(false);
+      el('btnQaAll').onclick = ()=>loadQuestions(true);
+      el('btnAddGroup').onclick = addGroup;
+
+      // Materials (events for the SINGLE form)
+      el('mFiles').addEventListener('change', (e)=>{
+        mQueuedFiles = [...e.target.files];
+        redrawMChips();
+        el('mUploadHint').classList.add('d-none');
+        mUploadedFiles = [];
+      });
+      el('btnMUpload').onclick = uploadMQueued;
+      el('btnAddLink').onclick = addMaterialLink;
+      el('btnSendMaterial').onclick = sendMaterial;
+      el('btnMClear').onclick = clearMaterialForm;
+
+      // === ИЗМЕНЕНИЕ: Логика переключения вкладок материалов ===
+      // Используем bootstrap event 'click' на кнопках вкладок, так как 'shown.bs.tab' не сработает до инициализации табов
+      document.querySelectorAll('#materialsTabs .nav-link').forEach(tabButton => {
+          tabButton.addEventListener('click', (ev) => {
+              const button = ev.target.closest('button');
+              if (!button) return;
+
+              // Деактивируем все кнопки
+              document.querySelectorAll('#materialsTabs .nav-link').forEach(btn => btn.classList.remove('active'));
+              // Активируем нажатую
+              button.classList.add('active');
+
+              const category = button.getAttribute('data-category');
+              const categoryName = materialCategoryNames[category] || category; // Get human-readable name
+
+              el('mCategory').value = category; // Set hidden input
+              el('mCategoryLabel').textContent = categoryName; // Update form title
+
+              // Clear form when switching categories? Optional, maybe confusing.
+              // clearMaterialForm();
+
+              loadMaterials(); // Load list for the new category
+          });
+      });
+      // =========================================================
+
+      // Main Tabs
+      el('tabs').addEventListener('shown.bs.tab', refreshActiveTab);
+
+      // Initial load
+      await loadGroups();
+      // Ensure the activity group selector matches the main one
+      const saSel = el('saGroupSelect');
+      if (saSel && currentGroupId) saSel.value = currentGroupId;
+      await refreshActiveTab(); // Load data for the default active tab
+    });
+
+    async function refreshActiveTab(){
+      const active = document.querySelector('#ok .tab-pane.active')?.id;
+      if (!active) return;
+      console.log("Refreshing tab:", active); // Debugging line
+      switch (active){
+        case 'tab-att':        return loadAttendance();
+        case 'tab-assign':     return loadAssignments();
+        case 'tab-materials':  // Now just needs to load the list for the current category
+                               return loadMaterials();
+        case 'tab-activity':   return saRefresh();
+        case 'tab-subm':       return setupSubmissions();
+        case 'tab-qa':         return loadQuestions(false);
+        case 'tab-users':      return loadUsers();
+        case 'tab-approvals':  return loadApprovals();
+        case 'tab-groups':     return renderGroups();
+      }
+    }
+
+    // ============== ATTENDANCE ==============
+    async function loadAttendance(){
+      const list = el('attList');
+      const d = el('attDate').value;
+      if (!currentGroupId || !d){
+        list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-info-circle"></i> Выберите группу и дату</div>';
+        return;
+      }
+      const [students, marks] = await Promise.all([
+        api(`/users?role=student&group_id=${currentGroupId}&approved=true`),
+        api(`/attendance?group_id=${currentGroupId}&date=${d}`)
+      ]);
+      if (!students){ list.innerHTML = '<div class="list-group-item text-danger">Ошибка загрузки студентов</div>'; return; }
+      if (marks === null) { /* Marks might be null if API fails, handle gracefully */
+        console.warn("Failed to load attendance marks.");
+      }
+
+
+      const map = new Map((marks||[]).map(x=>[x.student_id, x.is_present]));
+      list.innerHTML = '';
+      if (!students.length) {
+         list.innerHTML = '<div class="list-group-item muted text-center py-4">В этой группе нет студентов</div>';
+         return;
+      }
+      for (const s of students){
+        const id = `att-${s.user_id}`;
+        // Default to present if no mark exists for the date yet
+        const checked = map.has(s.user_id) ? !!map.get(s.user_id) : true;
+        list.insertAdjacentHTML('beforeend', `
+          <div class="att-row">
+            <div>
+              <div class="att-name">${s.last_name} ${s.first_name}</div>
+              <div class="att-id">ID:${s.user_id}</div>
+            </div>
+            <div>
+              <input class="att-toggle" type="checkbox" id="${id}" data-id="${s.user_id}" ${checked?'checked':''}>
+              <label class="att-switch" for="${id}" aria-label="Отметить присутствие"></label>
+            </div>
+          </div>
+        `);
+      }
+    }
+
+    async function saveAttendance(){
+      const d = el('attDate').value;
+      if (!currentGroupId || !d) return;
+      const items = [...document.querySelectorAll('#attList .att-toggle')].map(i=>({ student_id: Number(i.dataset.id), is_present: !!i.checked }));
+      const ok = await api('/attendance','POST',{ group_id:Number(currentGroupId), date:d, attendance:items });
+      if (ok){ tg.showAlert('✅ Сохранено'); haptic('success'); /* No need to reload, data is saved */ }
+    }
+
+    // ============== ASSIGNMENTS ==============
+    function redrawChips(){
+      const box = el('fileChips'); box.innerHTML = '';
+      if (!queuedFiles.length){ return; } // No placeholder needed
+      for (let i=0;i<queuedFiles.length;i++){
+        const f = queuedFiles[i]; const pretty = `${f.name} · ${(f.size/1024).toFixed(1)} KB`; const id = `chip-${i}`;
+        box.insertAdjacentHTML('beforeend', `
+          <span class="file-chip" id="${id}">
+            <i class="bi bi-file-earmark"></i> ${pretty}
+            <button type="button" class="btn-close" aria-label="Remove" data-index="${i}"></button>
+          </span>
+        `);
+      }
+      // Re-attach listeners after redraw
+      box.querySelectorAll('.btn-close').forEach(btn => {
+         btn.onclick = (e) => {
+             e.preventDefault();
+             const indexToRemove = parseInt(e.target.getAttribute('data-index'), 10);
+             queuedFiles.splice(indexToRemove, 1);
+             uploadedFiles = []; // Clear uploaded if files change
+             el('uploadHint').classList.add('d-none');
+             redrawChips(); // Redraw with updated indices
+         };
+      });
+    }
+    async function uploadQueued(){
+      if (!queuedFiles.length){ tg.showAlert('Выберите файлы'); return []; }
+      const fd = new FormData(); for (const f of queuedFiles) fd.append('files[]', f, f.name);
+      const res = await api('/upload_file','POST', fd, true); if (!res){ return []; }
+      let files = []; if (Array.isArray(res.files)) files = res.files; else if (res.file_id) files = [res];
+      if (!files.length){ tg.showAlert('Сервер не вернул файлы'); return []; }
+      uploadedFiles = files; el('uploadHint').classList.remove('d-none'); haptic('success'); return files;
+    }
+    function clearAssignmentForm(){ el('aTitle').value=''; el('aDesc').value=''; el('aDue').value=''; el('aFiles').value=''; queuedFiles=[]; uploadedFiles=[]; el('uploadHint').classList.add('d-none'); redrawChips(); }
+    async function sendAssignment(){
+      const btn = el('btnSendAssignment'); const titleEl = el('aTitle'); const descEl  = el('aDesc'); const dueEl   = el('aDue');
+      const original = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Отправка…';
+      try{
+        if (!currentGroupId){ tg.showAlert('Выберите группу'); return; }
+        const title = (titleEl.value||'').trim(); if (!title){ tg.showAlert('Введите название'); titleEl.focus(); return; }
+        if (queuedFiles.length && !uploadedFiles.length){
+            tg.showAlert('Файлы выбраны, но не загружены. Нажмите "Загрузить файлы"');
+            return;
+         }
+        const primary = uploadedFiles[0] || null;
+        const payload = { group_id: Number(currentGroupId), title, description: (descEl.value||'').trim() || null, due_date: dueEl.value ? new Date(dueEl.value).toISOString() : null, file_id: primary ? primary.file_id : null, file_type: primary ? primary.file_type : null };
+        const res = await api('/assignments/send','POST', payload); if (!res) return;
+        haptic('success'); tg.showAlert('✅ Задание отправлено');
+        // No need for tg.sendData, backend handles queuing now
+        clearAssignmentForm(); await loadAssignments();
+      }catch(e){ haptic('error'); tg.showAlert('❌ Ошибка: ' + (e.message || 'неизвестная')); }
+      finally{ btn.disabled = false; btn.innerHTML = original; }
+    }
+    async function loadAssignments(){
+      const list = el('assignList');
+      if (!currentGroupId){ list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-info-circle"></i> Выберите группу</div>'; return; }
+      list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i> Загрузка…</div>';
+      const arr = await api(`/assignments?group_id=${currentGroupId}`); list.innerHTML = '';
+      if (!arr || !arr.length){ list.innerHTML = '<div class="list-group-item muted text-center py-4">Заданий пока нет</div>'; return; }
+      for (const a of arr){
+        const statusClass = a.accepting_submissions ? 'status-success' : 'status-danger';
+        const statusText = a.accepting_submissions ? '✅ Приём открыт' : '❌ Приём закрыт';
+        list.insertAdjacentHTML('beforeend', `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong>${a.title}</strong>
+                <div class="small muted mt-1">#${a.assignment_id}</div>
+              </div>
+              <div class="small ${statusClass}">${statusText}</div>
+            </div>
+            ${a.description ? `<div class="mt-2 text-muted">${a.description}</div>` : ''}
+            ${a.due_date ? `<div class="small muted mt-2"><i class="bi bi-calendar-event"></i> ${fmtDT(a.due_date)}</div>` : '<div class="small muted mt-2"><i class="bi bi-info-circle"></i> Срок не задан</div>'}
+          </div>
+        `);
+      }
+    }
+
+    // ============== MATERIALS (SINGLE FORM LOGIC) ==============
+    function redrawMChips(){
+      const box = el('mFileChips'); box.innerHTML = '';
+      if (!mQueuedFiles.length){ return; }
+       for (let i=0;i<mQueuedFiles.length;i++){
+        const f = mQueuedFiles[i]; const pretty = `${f.name} · ${(f.size/1024).toFixed(1)} KB`; const id = `mchip-${i}`;
+        box.insertAdjacentHTML('beforeend', `
+          <span class="file-chip" id="${id}">
+            <i class="bi bi-file-earmark"></i> ${pretty}
+            <button type="button" class="btn-close" aria-label="Remove" data-index="${i}"></button>
+          </span>
+        `);
+      }
+      // Re-attach listeners after redraw
+      box.querySelectorAll('.btn-close').forEach(btn => {
+         btn.onclick = (e) => {
+             e.preventDefault();
+             const indexToRemove = parseInt(e.target.getAttribute('data-index'), 10);
+             mQueuedFiles.splice(indexToRemove, 1);
+             mUploadedFiles = []; // Clear uploaded if files change
+             el('mUploadHint').classList.add('d-none');
+             redrawMChips(); // Redraw with updated indices
+         };
+      });
+    }
+    async function uploadMQueued(){
+      if (!mQueuedFiles.length){ tg.showAlert('Выберите файлы'); return []; }
+      const fd = new FormData(); for (const f of mQueuedFiles) fd.append('files[]', f, f.name);
+      const res = await api('/upload_file','POST', fd, true); if (!res){ return []; }
+      let files = []; if (Array.isArray(res.files)) files = res.files; else if (res.file_id) files = [res];
+      if (!files.length){ tg.showAlert('Сервер не вернул файлы'); return []; }
+      mUploadedFiles = files; el('mUploadHint').classList.remove('d-none'); haptic('success'); return files;
+    }
+    function redrawMLinks() {
+        const box = el('mLinks'); box.innerHTML = '';
+        if (!mLinks.length) { return; }
+        for (let i=0; i < mLinks.length; i++) {
+             const url = mLinks[i];
+             const id = `mlink-${i}`;
+             box.insertAdjacentHTML('beforeend', `<span class="file-chip" id="${id}"><i class="bi bi-link-45deg"></i> ${url} <button class="btn-close" aria-label="Remove" data-index="${i}"></button></span>`);
+        }
+        // Re-attach listeners
+        box.querySelectorAll('.btn-close').forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                const indexToRemove = parseInt(e.target.getAttribute('data-index'), 10);
+                mLinks.splice(indexToRemove, 1);
+                redrawMLinks(); // Redraw with updated indices
+            };
+        });
+    }
+    function addMaterialLink(){
+      const inp = el('mLinkInput'); const url = (inp.value||'').trim();
+      if (!url) { inp.focus(); return; }
+       // Basic URL validation
+      try {
+          new URL(url);
+      } catch (_) {
+          tg.showAlert('Введите корректный URL (например, https://...)');
+          inp.focus();
+          return;
+      }
+      mLinks.push(url);
+      redrawMLinks();
+      inp.value='';
+    }
+    function clearMaterialForm(){
+      el('mTitle').value=''; el('mDesc').value=''; el('mFiles').value='';
+      el('mLinkInput').value = ''; // Clear link input too
+      el('mUploadHint').classList.add('d-none');
+      mQueuedFiles=[]; mUploadedFiles=[]; mLinks=[];
+      el('mLinks').innerHTML=''; redrawMChips(); redrawMLinks();
+    }
+    async function sendMaterial(){
+      const btn = el('btnSendMaterial'); const orig = btn.innerHTML; btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Отправка…';
+      try{
+        if (!currentGroupId){ tg.showAlert('Выберите группу'); return; }
+        const category = el('mCategory').value; // Read from hidden input
+        const title = (el('mTitle').value||'').trim(); if (!title){ tg.showAlert('Введите заголовок'); el('mTitle').focus(); return; }
+        const desc = (el('mDesc').value||'').trim() || null;
+
+        if (mQueuedFiles.length && !mUploadedFiles.length){
+            tg.showAlert('Файлы выбраны, но не загружены. Нажмите "Загрузить файлы"');
+            return;
+        }
+
+        const files = (mUploadedFiles||[]).map(f=>({ file_id: f.file_id, file_type: f.file_type, name: f.name || null, mime: f.mime || null }));
+
+        // Ensure at least one piece of content exists (desc, file, or link)
+        if (!desc && files.length === 0 && mLinks.length === 0) {
+            tg.showAlert('Добавьте описание, файл или ссылку');
+            return;
+        }
+
+        const payload = {
+          group_id: Number(currentGroupId),
+          category, title, description: desc,
+          links: mLinks.length ? mLinks : [],
+          files,
+          notify: true,
+          pin: el('mPin').checked === true
+        };
+
+        const res = await api('/materials/send','POST', payload);
+        if (!res) return;
+
+        haptic('success'); tg.showAlert('✅ Материал отправлен');
+
+        // No need for tg.sendData, backend handles queuing
+        clearMaterialForm();
+        await loadMaterials(); // Reload list for the current category
+      }catch(e){ haptic('error'); tg.showAlert('❌ Ошибка: ' + (e.message || 'неизвестная')); }
+      finally{ btn.disabled=false; btn.innerHTML=orig; }
+    }
+    async function loadMaterials(){
+      const list = el('materialsList');
+      if (!currentGroupId){ list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-info-circle"></i> Выберите группу</div>'; return; }
+      const cat = el('mCategory').value || 'lectures'; // Read from hidden input
+      list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i> Загрузка…</div>';
+      const arr = await api(`/materials?group_id=${currentGroupId}&category=${encodeURIComponent(cat)}`);
+      list.innerHTML='';
+      if (!arr || !arr.length){ list.innerHTML = `<div class="list-group-item muted text-center py-4">Материалов в категории "${materialCategoryNames[cat] || cat}" пока нет</div>`; return; }
+
+      for (const m of arr){
+        const badge = materialCategoryNames[m.category] || m.category;
+        const files = (m.files_count ?? 0); const links = (m.links_count ?? 0);
+        let contentInfo = [];
+        if (files > 0) contentInfo.push(`📎 ${files} файл(ов)`);
+        if (links > 0) contentInfo.push(`🔗 ${links} ссылок`);
+
+        list.insertAdjacentHTML('beforeend', `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong>${m.title || 'Без названия'}</strong>
+                 ${m.description ? `<div class="small text-muted mt-1">${m.description.substring(0, 100)}${m.description.length > 100 ? '...' : ''}</div>` : ''}
+                ${contentInfo.length > 0 ? `<div class="small muted mt-2">${contentInfo.join(' | ')}</div>` : ''}
+              </div>
+              <span class="badge badge-soft text-capitalize">${badge}</span>
+            </div>
+            <div class="small muted mt-2"><i class="bi bi-calendar-event"></i> ${fmtDT(m.created_at || new Date())}</div>
+            </div>
+        `);
+      }
+    }
+    // Optional: Add deleteMaterial function if needed
+    // async function deleteMaterial(materialId) {
+    //    if (!confirm('Удалить этот материал?')) return;
+    //    const ok = await api(`/materials/${materialId}`, 'DELETE');
+    //    if (ok) { haptic('success'); await loadMaterials(); }
+    // }
+
+
+    // ============== STUDENT ACTIVITIES (NEW) ==============
+    const _saCache = {
+      groupStudents: new Map(),           // gid -> [{user_id, first_name, last_name}, ...]
+      groupAttendanceStats: new Map(),    // gid -> Map<student_id, {total_present,total_tracked,percent_present}>
+      groupAssignments: new Map(),        // gid -> [{assignment_id, title, ...}]
+      groupSubmissions: new Map(),        // gid -> Map<assignment_id, submissions[]>
+      studentAttendanceTimeline: new Map()// sid -> [{date, present}]
+    };
+
+    function fullName(u){
+      const fn = (u.first_name||'').trim();
+      const ln = (u.last_name||'').trim();
+      return (ln && fn) ? `${ln} ${fn}` : (fn || ln || `ID ${u.user_id}`);
+    }
+
+    // Инициализация вкладки
+    async function renderStudentActivities(){
+      const tab = el('tab-activity');
+      if (!tab) return; // на всякий случай
+
+      // Заполним селект групп, если он пуст
+      const sel = el('saGroupSelect');
+      if (sel && !sel.options.length){
+        const groups = await api('/groups');
+        if (groups) { // Check if groups loaded successfully
+            sel.innerHTML = `<option value="">— выберите группу —</option>` +
+              groups.map(g=>`<option value="${g.group_id}">${g.name}</option>`).join('');
+            // восстановим выбор из локального хранилища
+            if (currentGroupId) sel.value = currentGroupId;
+        } else {
+             sel.innerHTML = `<option value="">Ошибка загрузки групп</option>`;
+        }
+      }
+
+      // Обновление таблицы при смене группы в ЭТОЙ вкладке
+      if (sel){
+        sel.onchange = async () => {
+          const gid = sel.value;
+          // Синхронизируем с главным селектором и localStorage
+          if (gid){
+              localStorage.setItem('currentGroupId', gid);
+              currentGroupId = gid;
+              el('groupSelect').value = gid; // Update main selector
+          } else {
+               localStorage.removeItem('currentGroupId');
+               currentGroupId = '';
+               el('groupSelect').value = '';
+          }
+          await saRefresh(); // Refresh table in this tab
+        };
+      }
+
+      // Привяжем обновление к показу вкладки
+       try {
+           const triggerEl = document.querySelector('#tabs button[data-bs-target="#tab-activity"]');
+           if (triggerEl) {
+               triggerEl.addEventListener('shown.bs.tab', saRefresh);
+           }
+       } catch(_) {}
+
+       // Первичная загрузка, если эта вкладка активна по умолчанию
+       if (document.querySelector('#tab-activity')?.classList.contains('active')) {
+             await saRefresh();
+       }
+    }
+
+    // Основной рефреш
+    async function saRefresh(){
+      const sel = el('saGroupSelect');
+      if (!sel) return;
+      const gid = sel.value || ''; // Use empty string if no selection
+       if (!gid){
+            el('saTableBody') && (el('saTableBody').innerHTML='<tr><td colspan="5" class="text-center muted py-4"><i class="bi bi-info-circle"></i> Выберите группу</td></tr>');
+            el('saSummary') && (el('saSummary').innerHTML='');
+            return;
+       }
+
+      el('saTableBody').innerHTML = '<tr><td colspan="5" class="text-center muted py-4"><i class="bi bi-hourglass-split"></i> Загрузка...</td></tr>';
+
+      // Reset cache for the group to force reload
+      _saCache.groupStudents.delete(gid);
+      _saCache.groupAttendanceStats.delete(gid);
+      _saCache.groupAssignments.delete(gid);
+      _saCache.groupSubmissions.delete(gid);
+
+
+      await Promise.all([
+        saEnsureStudents(gid),
+        saEnsureAttendanceStats(gid),
+        saEnsureAssignmentsAndSubmissions(gid)
+      ]);
+
+      saRenderSummaryTable(gid);
+    }
+
+    // Загрузка студентов группы
+    async function saEnsureStudents(gid){
+      if (_saCache.groupStudents.has(gid)) return;
+      console.log("Fetching students for group", gid);
+      const users = await api(`/users?group_id=${gid}&role=student&approved=true`);
+      _saCache.groupStudents.set(gid, users || []);
+    }
+
+    // Загрузка агрегированной статистики посещаемости по группе
+    async function saEnsureAttendanceStats(gid){
+      if (_saCache.groupAttendanceStats.has(gid)) return;
+      console.log("Fetching attendance stats for group", gid);
+      const stats = await api(`/attendance/stats/group?group_id=${gid}`) || [];
+      const map = new Map();
+      stats.forEach(s => map.set(Number(s.user_id), {
+        total_present: Number(s.total_present||0),
+        total_tracked: Number(s.total_tracked||0),
+        percent_present: (s.percent_present==null? null : Number(s.percent_present))
+      }));
+      _saCache.groupAttendanceStats.set(gid, map);
+    }
+
+    // Загрузка заданий группы и всех их сабмитов
+    async function saEnsureAssignmentsAndSubmissions(gid){
+        if (_saCache.groupAssignments.has(gid) && _saCache.groupSubmissions.has(gid)) return;
+        console.log("Fetching assignments and submissions for group", gid);
+
+        const assignments = await api(`/assignments?group_id=${gid}`) || [];
+        _saCache.groupAssignments.set(gid, assignments);
+
+        const subsByA = new Map();
+        // Fetch submissions for all assignments concurrently
+        const submissionPromises = assignments.map(async (a) => {
+            const subs = await api(`/assignments/${a.assignment_id}/submissions`) || [];
+            subsByA.set(a.assignment_id, subs);
+        });
+        await Promise.all(submissionPromises);
+
+        _saCache.groupSubmissions.set(gid, subsByA);
+    }
+
+
+    // Построение агрегированной таблицы по группе
+    function saRenderSummaryTable(gid){
+      const tbody = el('saTableBody');
+      const summary = el('saSummary');
+      if (!tbody || !summary) return;
+
+      const students = _saCache.groupStudents.get(gid) || [];
+      const attMap  = _saCache.groupAttendanceStats.get(gid) || new Map();
+      const assignments = _saCache.groupAssignments.get(gid) || [];
+      const subsByA = _saCache.groupSubmissions.get(gid) || new Map();
+
+      if (!students.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center muted py-4">В этой группе нет студентов</td></tr>';
+          summary.innerHTML = '';
+          return;
+      }
+
+      // Предрасчёт количества выполненных заданий на каждого
+      const totalA = assignments.length;
+      const doneByStudent = new Map(); // sid -> {done: number, listDone:[], listMissing:[]}
+
+      for (const s of students){
+        doneByStudent.set(Number(s.user_id), {done:0, listDone:[], listMissing:[]});
+      }
+      for (const a of assignments){
+        const subs = subsByA.get(a.assignment_id) || [];
+        const submittedSet = new Set(subs.filter(x=>x.submitted).map(x=>Number(x.student_id)));
+
+        for (const s of students){
+          const sid = Number(s.user_id);
+          const bucket = doneByStudent.get(sid);
+          if (submittedSet.has(sid)){
+            bucket.done += 1;
+            bucket.listDone.push({assignment_id: a.assignment_id, title: a.title || `#${a.assignment_id}`});
+          } else {
+            bucket.listMissing.push({assignment_id: a.assignment_id, title: a.title || `#${a.assignment_id}`});
+          }
+        }
+      }
+
+      // Рендер
+      tbody.innerHTML = students.map((s, idx) => {
+        const sid = Number(s.user_id);
+        const att = attMap.get(sid) || {total_present:0,total_tracked:0,percent_present:null};
+        const done = doneByStudent.get(sid) || {done:0,listDone:[],listMissing:[]};
+        const percent = (att.percent_present==null) ? '—' : `${att.percent_present.toFixed(0)}%`;
+
+        return `
+          <tr>
+            <td class="text-muted">${idx+1}</td>
+            <td>${fullName(s)}</td>
+            <td>${att.total_present} из ${att.total_tracked} <span class="text-muted">(${percent})</span></td>
+            <td>${done.done} / ${totalA}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-secondary" data-sa-details="${sid}">
+                <i class="bi bi-search"></i>
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      // Итого по группе (средний процент посещаемости и среднее число сданных)
+      let avgPercent = 0, peopleWithPercent = 0, sumDone = 0;
+      for (const s of students){
+        const sid = Number(s.user_id);
+        const att = attMap.get(sid);
+        if (att && att.percent_present!=null){ avgPercent += Number(att.percent_present); peopleWithPercent += 1; }
+        const done = doneByStudent.get(sid);
+        if (done) sumDone += done.done;
+      }
+      const meanPercent = peopleWithPercent ? (avgPercent/peopleWithPercent).toFixed(1) : '—';
+      const meanDone = students.length ? (sumDone / students.length).toFixed(1) : '0.0';
+
+      summary.innerHTML = `
+        <div class="alert alert-info mb-0">
+          <div class="d-flex flex-wrap gap-3 align-items-center">
+            <div><i class="bi bi-people"></i> Студентов: <b>${students.length}</b></div>
+            <div><i class="bi bi-clipboard2-check"></i> Заданий (всего): <b>${totalA}</b></div>
+            <div><i class="bi bi-activity"></i> Ср. посещаемость: <b>${meanPercent}%</b></div>
+            <div><i class="bi bi-card-checklist"></i> Ср. выполнено заданий: <b>${meanDone}</b></div>
+          </div>
+        </div>`;
+
+      // Обработчик "Детали"
+      tbody.querySelectorAll('[data-sa-details]').forEach(btn=>{
+        btn.onclick = () => saOpenStudentDetails(gid, Number(btn.getAttribute('data-sa-details')));
+      });
+    }
+
+    // Детальный просмотр по студенту
+    async function saOpenStudentDetails(gid, sid){
+      // Заголовок
+      const students = _saCache.groupStudents.get(gid) || [];
+      const u = students.find(x=>Number(x.user_id)===Number(sid));
+      el('saStudentHeader') && (el('saStudentHeader').innerHTML =
+        `<div class="fw-bold">${fullName(u||{user_id:sid})}</div>
+         <div class="text-muted">ID: ${sid}</div>`);
+
+      // Лента посещаемости (по датам)
+      el('saStudentAttendance').innerHTML = '<div class="list-group-item muted text-center">Загрузка...</div>';
+      // Force reload timeline
+      _saCache.studentAttendanceTimeline.delete(sid);
+      const raw = await api(`/attendance/stats/student/${sid}`) || [];
+      const timeline = raw.map(r => ({
+          date: (r.attendance_date || r.date || r.attendanceDate),
+          present: !!(r.is_present ?? r.present)
+      }));
+      _saCache.studentAttendanceTimeline.set(sid, timeline);
+
+      el('saStudentAttendance') && (el('saStudentAttendance').innerHTML =
+        (timeline.length
+          ? `<ul class="list-group">
+               ${timeline.sort((a,b) => b.date.localeCompare(a.date)).map(t => `
+                 <li class="list-group-item d-flex justify-content-between align-items-center">
+                   <span>${t.date}</span>
+                   ${t.present
+                      ? '<span class="badge bg-success">был</span>'
+                      : '<span class="badge bg-danger">не был</span>'}
+                 </li>`).join('')}
+             </ul>`
+          : `<div class="text-muted">Нет отмеченных дат для этой группы.</div>`
+        )
+      );
+
+      // Выполненные/невыполненные задания
+      el('saStudentAssignments').innerHTML = '<div class="list-group-item muted text-center">Загрузка...</div>';
+      const assignments = _saCache.groupAssignments.get(gid) || [];
+      const subsByA = _saCache.groupSubmissions.get(gid) || new Map();
+      const done = [], missing = [];
+      for (const a of assignments){
+        const subs = subsByA.get(a.assignment_id) || [];
+        const me = subs.find(x => Number(x.student_id)===Number(sid) && x.submitted);
+        if (me) done.push(a); else missing.push(a);
+      }
+      el('saStudentAssignments') && (el('saStudentAssignments').innerHTML = `
+        <div class="mb-2"><b>Сдано:</b> ${done.length} из ${assignments.length}</div>
+        <div class="row g-2">
+          <div class="col-12 col-lg-6">
+            <div class="card p-3 h-100">
+              <div class="fw-semibold mb-2"><i class="bi bi-check2-circle text-success"></i> Выполненные</div>
+              ${done.length
+                ? `<ul class="list-group list-group-flush">
+                     ${done.map(a=>`<li class="list-group-item">${a.title || 'Без названия'}</li>`).join('')}
+                   </ul>`
+                : `<div class="text-muted small p-2">Нет</div>`}
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="card p-3 h-100">
+              <div class="fw-semibold mb-2"><i class="bi bi-x-circle text-danger"></i> Не сданные</div>
+              ${missing.length
+                ? `<ul class="list-group list-group-flush">
+                     ${missing.map(a=>`<li class="list-group-item">${a.title || 'Без названия'}</li>`).join('')}
+                   </ul>`
+                : `<div class="text-muted small p-2">Нет</div>`}
+            </div>
+          </div>
+        </div>`);
+
+      // Открыть модал/оффканвас
+      try {
+        const modalElement = document.getElementById('saStudentModal');
+        const modal = bootstrap.Offcanvas.getOrCreateInstance(modalElement);
+        modal.show();
+      } catch(e){ console.error("Error showing offcanvas:", e); }
+    }
+
+    // Автозапуск и привязка к выбору вкладки - Вызываем после определения всех функций
+    (async ()=>{
+      if (el('tab-activity')) await renderStudentActivities();
+      // Синхронизация главного селектора с селектором активности
+      const mainSel = el('groupSelect');
+      if (mainSel){
+        mainSel.addEventListener('change', async ()=>{
+          const sel = el('saGroupSelect');
+          if (sel){ sel.value = mainSel.value || ''; await saRefresh(); } // Refresh activity tab if visible
+        });
+      }
+    })();
+
+    // ============== SUBMISSIONS ==============
+    async function setupSubmissions(){
+        const sel = el('selAssignment');
+        const list = el('submList');
+        const stats = el('submStats');
+        const acceptWrap = el('acceptWrap');
+
+        if (!currentGroupId){
+            sel.innerHTML = '<option>Выберите группу</option>';
+            list.innerHTML = '';
+            stats.innerHTML = '';
+            acceptWrap.style.display = 'none';
+            return;
+        }
+
+        sel.innerHTML = '<option value="">Загрузка заданий…</option>';
+        const arr = await api(`/assignments?group_id=${currentGroupId}`);
+
+        if (!arr) {
+            sel.innerHTML = '<option value="">Ошибка загрузки</option>';
+            list.innerHTML = ''; stats.innerHTML = ''; acceptWrap.style.display = 'none';
+            return;
+        }
+
+        sel.innerHTML = '<option value="">Выберите задание…</option>';
+        if (!arr.length) {
+            sel.innerHTML = '<option value="">Нет заданий для группы</option>';
+            list.innerHTML = ''; stats.innerHTML = ''; acceptWrap.style.display = 'none';
+            return;
+        }
+
+        for (const a of arr) {
+            sel.insertAdjacentHTML('beforeend', `<option value="${a.assignment_id}">${a.title}</option>`);
+        }
+
+        sel.onchange = loadSubmissions; // Attach listener AFTER populating
+
+        // Automatically load submissions for the first assignment if available
+        if (arr.length > 0) {
+            sel.value = arr[0].assignment_id; // Select the first one by default
+            await loadSubmissions();
+        } else {
+             list.innerHTML=''; stats.innerHTML=''; acceptWrap.style.display='none';
         }
     }
 
-    function updateCurrentGroupName(groupId, groups) {
-         const groupName = groupId ? groups.find(g => g.group_id == groupId)?.name || '?' : 'Не выбрана';
-         document.querySelectorAll('.current-group-name').forEach(el => el.textContent = groupName);
-     }
 
-    async function loadInitialData() {
-        const groups = await apiRequest('/groups');
-        if (!groups) return;
+    async function loadSubmissions(){
+      const sel = el('selAssignment');
+      const id = sel.value; // Use current value
+      const list = el('submList');
+      const stats = el('submStats');
+      const acceptWrap = el('acceptWrap');
+      const acceptState = el('acceptState');
+      const btnToggle = el('btnToggleAccept');
 
-        const groupSelector = document.getElementById('groupSelector');
-        const currentSelectedValue = groupSelector.value;
-        groupSelector.innerHTML = '<option value="">Выберите группу...</option>';
-        groups.forEach(group => {
-            const option = document.createElement('option');
-            option.value = group.group_id;
-            option.textContent = group.name;
-            if (currentGroupId && group.group_id == currentGroupId) {
-                 option.selected = true;
-            } else if (!currentGroupId && currentSelectedValue && group.group_id == currentSelectedValue) {
-                 option.selected = true; // Keep selection if currentGroupId was nullified
-                 currentGroupId = currentSelectedValue;
-                 localStorage.setItem('currentGroupId', currentGroupId);
-            }
-            groupSelector.appendChild(option);
-        });
-
-        if (!groupSelector.value && currentGroupId) {
-             currentGroupId = null; // Group might have been deleted
-             localStorage.removeItem('currentGroupId');
-        } else if (groupSelector.value) {
-            currentGroupId = groupSelector.value; // Ensure currentGroupId is set if selected
-             localStorage.setItem('currentGroupId', currentGroupId);
-        }
-
-
-        updateCurrentGroupName(currentGroupId, groups);
-        loadGroupsList(groups);
-        loadApprovals();
-
-        const activeTab = document.querySelector('#adminTab .nav-link.active');
-        if (activeTab) {
-             handleTabChange(activeTab.getAttribute('data-bs-target'));
-        }
-     }
-
-     function handleGroupChange(groupId) {
-         currentGroupId = groupId || null;
-         if (currentGroupId) localStorage.setItem('currentGroupId', currentGroupId);
-         else localStorage.removeItem('currentGroupId');
-         loadInitialData();
-     }
-
-    async function loadStudentsForGroup(groupId) {
-         const listDiv = document.getElementById('studentsListGroup');
-         if (!groupId) { listDiv.innerHTML = '<div class="list-group-item">Группа не выбрана.</div>'; return; }
-         listDiv.innerHTML = '<div class="loading">Загрузка студентов...</div>';
-         studentsForGroupManagement = await apiRequest(`/users?role=student&group_id=${groupId}`);
-         if (studentsForGroupManagement && studentsForGroupManagement.length > 0) {
-             listDiv.innerHTML = studentsForGroupManagement.map(s => `
-                 <div class="list-group-item d-flex justify-content-between align-items-center">
-                     <span>${s.last_name} ${s.first_name}</span>
-                     <button class="btn btn-sm btn-danger" onclick="removeStudentFromGroup(${s.user_id}, '${s.last_name} ${s.first_name}')">Удалить из группы</button>
-                 </div>`).join('');
-         } else if (studentsForGroupManagement) {
-             listDiv.innerHTML = '<div class="list-group-item">Студентов нет.</div>';
-         } else {
-             listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка загрузки.</div>';
-         }
-     }
-
-     async function removeStudentFromGroup(userId, studentName) {
-         tg.showConfirm(`Удалить ${studentName} из группы?`, async (confirmed) => {
-             if (confirmed) {
-                 if (await apiRequest(`/users/${userId}/group`, 'PATCH', { group_id: null })) {
-                     loadStudentsForGroup(currentGroupId);
-                 }
-             }
-         });
-     }
-
-     async function loadAttendance() {
-         const date = document.getElementById('attendanceDate').value;
-         const listDiv = document.getElementById('attendanceList');
-         const saveBtn = document.getElementById('saveAttendanceBtn');
-         saveBtn.style.display = 'none';
-
-         if (!currentGroupId || !date) { listDiv.innerHTML = '<div class="list-group-item">Выберите группу и дату.</div>'; return; }
-         listDiv.innerHTML = '<div class="loading">Загрузка...</div>';
-
-         const [students, attendanceData] = await Promise.all([
-             apiRequest(`/users?role=student&group_id=${currentGroupId}&approved=true`),
-             apiRequest(`/attendance?group_id=${currentGroupId}&date=${date}`)
-         ]);
-
-         if (!students) { listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка студентов.</div>'; return; }
-
-         studentsForAttendance = students;
-         const attendanceMap = new Map(attendanceData?.map(att => [att.student_id, att.is_present]) || []);
-
-         if (students.length > 0) {
-             listDiv.innerHTML = students.map(s => {
-                 const isPresent = attendanceMap.get(s.user_id) ?? true;
-                 return `
-                     <div class="list-group-item d-flex justify-content-between align-items-center student-attendance-row">
-                         <span>${s.last_name} ${s.first_name}</span>
-                         <div class="form-check form-switch">
-                           <input class="form-check-input" type="checkbox" role="switch" id="att-${s.user_id}" data-studentid="${s.user_id}" ${isPresent ? 'checked' : ''}>
-                           <label class="form-check-label" for="att-${s.user_id}">${isPresent ? 'Да' : 'Нет'}</label>
-                         </div>
-                     </div>`;
-             }).join('');
-             saveBtn.style.display = 'block';
-             listDiv.querySelectorAll('.form-check-input').forEach(input => {
-                 input.addEventListener('change', (e) => e.target.nextElementSibling.textContent = e.target.checked ? 'Да' : 'Нет');
-             });
-         } else { listDiv.innerHTML = '<div class="list-group-item">Студентов нет.</div>'; }
-     }
-
-     async function saveAttendance() {
-         const date = document.getElementById('attendanceDate').value;
-         if (!currentGroupId || !date) return;
-         const payload = { group_id: parseInt(currentGroupId), date: date, attendance: [] };
-         document.querySelectorAll('#attendanceList .form-check-input').forEach(input => {
-             payload.attendance.push({ student_id: parseInt(input.dataset.studentid), is_present: input.checked });
-         });
-         if (await apiRequest('/attendance', 'POST', payload)) {
-             tg.showAlert('Посещаемость сохранена.');
-             loadAttendance();
-         }
-     }
-
-     async function loadAssignmentsForGroup(groupId) {
-         const assignmentSelect = document.getElementById('submissionAssignmentSelect');
-         const assignmentsListDiv = document.getElementById('assignmentsList');
-         assignmentSelect.innerHTML = '<option value="">Загрузка...</option>';
-         assignmentsListDiv.innerHTML = '<div class="loading">Загрузка...</div>';
-         document.getElementById('submissionControls').style.display = 'none';
-
-         if (!groupId) {
-              assignmentSelect.innerHTML = '<option value="">Группа?</option>';
-              assignmentsListDiv.innerHTML = '<div class="list-group-item">Группа?</div>';
-              assignmentsForGroup = []; return;
-         }
-
-         assignmentsForGroup = await apiRequest(`/assignments?group_id=${groupId}`);
-         if (assignmentsForGroup) {
-             const optionsHtml = '<option value="">Выберите задание...</option>' + assignmentsForGroup.map(a => `<option value="${a.assignment_id}">${a.title}</option>`).join('');
-             assignmentSelect.innerHTML = optionsHtml;
-             assignmentsListDiv.innerHTML = assignmentsForGroup.length > 0
-                 ? assignmentsForGroup.map(a => `
-                     <div class="list-group-item">
-                         <strong>${a.title}</strong> (ID: ${a.assignment_id})
-                         ${a.due_date ? `<br><small>Срок: ${new Date(a.due_date).toLocaleString()}</small>` : ''}
-                         <br><small>Прием работ: ${a.accepting_submissions ? 'Открыт ✅' : 'Закрыт ❌'}</small>
-                     </div>`).join('')
-                 : '<div class="list-group-item">Заданий нет.</div>';
-         } else {
-              assignmentSelect.innerHTML = '<option value="">Ошибка</option>';
-              assignmentsListDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
-         }
+      if (!id){
+        list.innerHTML=''; stats.innerHTML=''; acceptWrap.style.display='none'; return;
       }
 
-      async function sendAssignment() {
-         if (!currentGroupId) { tg.showAlert('Выберите группу.'); return; }
-         const title = document.getElementById('assignmentTitle').value.trim();
-         if (!title) { tg.showAlert('Введите название.'); return; }
-         const description = document.getElementById('assignmentDescription').value.trim();
-         const fileInput = document.getElementById('assignmentFile');
-         const file = fileInput.files[0];
-         const dueDate = document.getElementById('assignmentDueDate').value ? new Date(document.getElementById('assignmentDueDate').value).toISOString() : null;
+      list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i> Загрузка сдач…</div>';
+      stats.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      acceptWrap.style.display='none';
 
-         tg.MainButton.showProgress();
-         let fileInfo = null;
-         if (file) {
-             const formData = new FormData(); formData.append('file', file);
-             fileInfo = await apiRequest('/upload_file', 'POST', formData, true);
-             if (!fileInfo || !fileInfo.file_id) { tg.MainButton.hideProgress(); return; }
-         }
+      const [students, subs, info] = await Promise.all([
+        api(`/users?role=student&group_id=${currentGroupId}&approved=true`),
+        api(`/assignments/${id}/submissions`),
+        api(`/assignments/${id}`)
+      ]);
+      if (!students || !info){
+        list.innerHTML='<div class="list-group-item text-danger">Ошибка загрузки данных</div>'; return;
+      }
 
-         const payload = {
-             group_id: parseInt(currentGroupId), title: title, description: description || null, due_date: dueDate,
-             file_id: fileInfo?.file_id, file_type: fileInfo?.file_type
-         };
+      acceptWrap.style.display = 'flex';
+      acceptState.textContent = info.accepting_submissions ? '✅ Приём открыт' : '❌ Приём закрыт';
+      btnToggle.dataset.id = id;
+      btnToggle.dataset.currentStatus = info.accepting_submissions ? 'open' : 'closed'; // Store current status
 
-         const result = await apiRequest('/assignments/send', 'POST', payload);
-         tg.MainButton.hideProgress();
-         if (result && result.assignment_id) {
-             document.getElementById('assignmentTitle').value = '';
-             document.getElementById('assignmentDescription').value = '';
-             fileInput.value = ''; document.getElementById('assignmentDueDate').value = '';
-             tg.showAlert('Задание отправлено.');
-             // Уведомляем бота для рассылки
-             tg.sendData(JSON.stringify({
-                 action: 'send_assignment_to_group',
-                 assignment_id: result.assignment_id,
-                 group_id: payload.group_id, title: payload.title, description: payload.description,
-                 due_date: payload.due_date, file_id: payload.file_id, file_type: payload.file_type
-             }));
-             loadAssignmentsForGroup(currentGroupId);
-         } else { tg.showAlert('Не удалось отправить.'); }
-     }
+      const map = new Map((subs||[]).map(s=>[s.student_id, s]));
+      let submitted=0, graded=0, late=0;
 
-     async function toggleAcceptSubmissions() {
-         const assignmentId = document.getElementById('submissionAssignmentSelect').value;
-         if (!assignmentId) return;
-         const newState = !currentAssignmentAccepting;
-         const result = await apiRequest(`/assignments/${assignmentId}/toggle_submission`, 'POST', { accept: newState });
-         if (result) {
-             currentAssignmentAccepting = newState;
-             document.getElementById('acceptingStatus').textContent = newState ? 'Прием открыт ✅' : 'Прием закрыт ❌';
-             tg.showAlert(`Прием работ ${newState ? 'открыт' : 'закрыт'}.`);
-             loadAssignmentsForGroup(currentGroupId); // Update list view
-         }
-     }
+      list.innerHTML = '';
+      if (!students.length) {
+          list.innerHTML = '<div class="list-group-item muted text-center py-4">В этой группе нет студентов</div>';
+      } else {
+          for (const s of students){
+            const sub = map.get(s.user_id);
+            let statusHTML = '<span class="status-danger">❌ Не сдано</span>';
+            let extra = '';
+            let gradeVal = '';
+            let commentVal = '';
 
-     async function loadSubmissionsForAssignment(assignmentId) {
-         const statsDiv = document.getElementById('submissionStats');
-         const listDiv = document.getElementById('submissionsList');
-         const controlsDiv = document.getElementById('submissionControls');
-         controlsDiv.style.display = 'none';
+            if (sub){
+              submitted++;
+              if (sub.is_late) { late++; statusHTML = '<span class="status-warning">⚠️ Сдано (позже)</span>'; }
+              else { statusHTML = '<span class="status-success">✅ Сдано</span>'; }
 
-         if (!assignmentId) { statsDiv.innerHTML = ''; listDiv.innerHTML = ''; submissionsForAssignment = []; return; }
-
-         statsDiv.innerHTML = '<div class="loading">Загрузка...</div>';
-         listDiv.innerHTML = '<div class="loading">Загрузка...</div>';
-
-         const [students, submissions, assignmentInfo] = await Promise.all([
-             apiRequest(`/users?role=student&group_id=${currentGroupId}&approved=true`),
-             apiRequest(`/assignments/${assignmentId}/submissions`),
-             apiRequest(`/assignments/${assignmentId}`) // Get assignment info for deadline and status
-         ]);
-
-         if (!students || !assignmentInfo) {
-              listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка загрузки.</div>';
-              statsDiv.innerHTML = ''; return;
-         }
-         currentAssignmentAccepting = assignmentInfo.accepting_submissions;
-         controlsDiv.style.display = 'block';
-         document.getElementById('acceptingStatus').textContent = currentAssignmentAccepting ? 'Прием открыт ✅' : 'Прием закрыт ❌';
+              gradeVal = sub.grade ?? '';
+              commentVal = sub.teacher_comment ?? '';
+              if (sub.grade !== null && sub.grade !== undefined) graded++;
 
 
-         submissionsForAssignment = submissions || [];
-         const submissionMap = new Map(submissionsForAssignment.map(sub => [sub.student_id, sub]));
-         let submittedCount = 0, gradedCount = 0, lateCount = 0;
-
-         if (students.length > 0) {
-             listDiv.innerHTML = students.map(student => {
-                 const sub = submissionMap.get(student.user_id);
-                 let statusHtml = '<span class="missing-submission">Не сдано</span>';
-                 let gradeHtml = '', fileHtml = '', timeHtml = '';
-
-                 if (sub) {
-                     submittedCount++;
-                     const isLate = sub.is_late;
-                     if (isLate) lateCount++;
-                     statusHtml = `<span class="${isLate ? 'late-submission' : 'text-warning'}">Сдано${isLate ? ' (опоздание)' : ''}</span>`;
-                     fileHtml = `<button class="btn btn-sm btn-outline-secondary me-2" onclick="requestFileFromBot('${sub.file_id}', ${sub.submission_id})">Файл</button>`;
-                     timeHtml = `<small>${new Date(sub.submission_date).toLocaleString()}</small>`;
-
-                     let score1Val = '', score2Val = '';
-                     if (sub.grade !== null) {
-                         gradedCount++;
-                         statusHtml = `<span class="text-success">Оценка: ${sub.grade}</span>`;
-                         // Example parsing back score1, score2 - ASSUMES grade = score1 + score2
-                         score1Val = Math.min(10, sub.grade); // Placeholder logic
-                         score2Val = Math.max(0, sub.grade - 10); // Placeholder logic
-                     }
-
-                     gradeHtml = `
-                         <div class="mt-2">
-                            <div class="input-group input-group-sm mb-1">
-                                <span class="input-group-text">Балл 1</span>
-                                <input type="number" id="score1-${sub.submission_id}" class="form-control" min="0" max="10" value="${score1Val}">
-                            </div>
-                             <div class="input-group input-group-sm mb-1">
-                                <span class="input-group-text">Балл 2</span>
-                                <input type="number" id="score2-${sub.submission_id}" class="form-control" min="0" max="10" value="${score2Val}">
-                            </div>
-                             <textarea id="comment-${sub.submission_id}" class="form-control form-control-sm mb-1" placeholder="Комментарий">${sub.teacher_comment || ''}</textarea>
-                             <button class="btn btn-sm btn-primary" onclick="gradeSubmission(${sub.submission_id})">Оценить</button>
-                         </div>`;
-                 }
-
-                 return `
-                     <div class="list-group-item mb-2">
-                         <div class="d-flex justify-content-between align-items-center flex-wrap">
-                             <span class="me-2">${student.last_name} ${student.first_name}</span>
-                             <div class="d-flex align-items-center">
-                                ${fileHtml}
-                                ${statusHtml}
-                                <span class="ms-2">${timeHtml}</span>
-                             </div>
-                         </div>
-                         ${gradeHtml}
-                     </div>`;
-             }).join('');
-         } else { listDiv.innerHTML = '<div class="list-group-item">Студентов нет.</div>'; }
-
-          statsDiv.innerHTML = `
-              <div>Всего: <strong>${students.length}</strong> | Сдано: <strong>${submittedCount}</strong> | Не сдано: <strong class="missing-submission">${students.length - submittedCount}</strong></div>
-              <div>Оценено: <strong>${gradedCount}</strong> | Опоздания: <strong class="late-submission">${lateCount}</strong></div>
-          `;
-     }
-
-     function requestFileFromBot(fileId, submissionId) {
-         tg.sendData(JSON.stringify({ action: 'get_submission_file', file_id: fileId, submission_id: submissionId }));
-     }
-
-     async function gradeSubmission(submissionId) {
-         const s1 = document.getElementById(`score1-${submissionId}`).value;
-         const s2 = document.getElementById(`score2-${submissionId}`).value;
-         const comment = document.getElementById(`comment-${submissionId}`).value.trim();
-         const score1 = s1 === '' ? null : parseInt(s1);
-         const score2 = s2 === '' ? null : parseInt(s2);
-
-         if ((score1 !== null && (score1 < 0 || score1 > 10)) || (score2 !== null && (score2 < 0 || score2 > 10))) {
-             tg.showAlert('Баллы 0-10.'); return;
-         }
-         const finalGrade = (score1 !== null && score2 !== null) ? score1 + score2 : null;
-         const payload = { grade: finalGrade, comment: comment || null };
-
-         if (await apiRequest(`/submissions/${submissionId}/grade`, 'PATCH', payload)) {
-             loadSubmissionsForAssignment(document.getElementById('submissionAssignmentSelect').value);
-         }
-     }
-
-     async function loadQuestions(showAnswered = false) {
-         const listDiv = document.getElementById('questionsList');
-         listDiv.innerHTML = '<div class="loading">Загрузка...</div>';
-         const endpoint = showAnswered ? '/questions?answered=all' : '/questions?answered=false';
-         questionsData = await apiRequest(endpoint);
-
-         if (questionsData && questionsData.length > 0) {
-             listDiv.innerHTML = questionsData.map(q => `
-                 <div class="list-group-item mb-2">
-                     <p><strong>${q.student_last_name || ''} ${q.student_first_name || '?'}</strong> (${q.group_name || '?'})</p>
-                     <p><small>${new Date(q.asked_at).toLocaleString()}</small></p>
-                     <p>${q.question_text}</p>
-                     ${q.answer_text
-                         ? `<hr><p><strong>Ответ (${q.answerer_name || '?'}):</strong> ${q.answer_text} <br><small>${new Date(q.answered_at).toLocaleString()}</small></p>`
-                         : `<hr><textarea id="answer-${q.question_id}" class="form-control form-control-sm mb-1" rows="2"></textarea>
-                            <button class="btn btn-sm btn-primary" onclick="answerQuestion(${q.question_id}, ${q.student_telegram_id}, '${btoa(encodeURIComponent(q.question_text))}')">Ответить</button>`
-                     }
-                 </div>`).join('');
-         } else if (questionsData) {
-              listDiv.innerHTML = `<div class="list-group-item">${showAnswered ? 'Вопросов нет.' : 'Нет неотвеч.'}</div>`;
-         } else { listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>'; }
-     }
-
-     async function answerQuestion(questionId, studentTelegramId, questionTextBase64) {
-         const answerText = document.getElementById(`answer-${questionId}`).value.trim();
-         if (!answerText) return;
-
-         const result = await apiRequest(`/questions/${questionId}/answer`, 'POST', { answer_text: answerText });
-         if (result) {
-             tg.showAlert('Ответ отправлен.');
-             // Notify bot to send message to student
-             tg.sendData(JSON.stringify({
-                 action: 'notify_answer', student_telegram_id: studentTelegramId,
-                 question_text: decodeURIComponent(atob(questionTextBase64)), answer_text: answerText
-             }));
-             loadQuestions(false);
-         }
-     }
-
-     async function loadGroupsList(groups = null) {
-         const listDiv = document.getElementById('groupsList');
-         if (!groups) { listDiv.innerHTML = '<div class="loading">Загрузка...</div>'; groups = await apiRequest('/groups'); }
-         if (groups) {
-             listDiv.innerHTML = groups.length > 0
-                 ? groups.map(g => `<div class="list-group-item d-flex justify-content-between align-items-center"><span>${g.name}</span><button class="btn btn-sm btn-danger" onclick="deleteGroup(${g.group_id}, '${g.name}')">X</button></div>`).join('')
-                 : '<div class="list-group-item">Групп нет.</div>';
-         } else { listDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>'; }
-     }
-
-     async function addGroup() {
-        const nameInput = document.getElementById('newGroupName');
-        const name = nameInput.value.trim();
-        if (!name) return;
-        if (await apiRequest('/groups', 'POST', { name: name })) {
-            nameInput.value = ''; loadInitialData();
-        }
-     }
-
-     async function deleteGroup(groupId, groupName) {
-        tg.showConfirm(`Удалить группу "${groupName}"?`, async (ok) => {
-             if (ok && await apiRequest(`/groups/${groupId}`, 'DELETE')) {
-                 if (currentGroupId == groupId) { currentGroupId = null; localStorage.removeItem('currentGroupId'); }
-                 loadInitialData();
+              extra = `
+                <div class="small muted mt-2"><i class="bi bi-calendar-event"></i> ${fmtDT(sub.submission_date)}</div>
+                <div class="mt-3 d-flex gap-2 flex-wrap">
+                  <button class="btn btn-sm btn-outline-secondary" onclick="resendSubmission(${sub.submission_id})">
+                    <i class="bi bi-eye"></i> Показать работу
+                  </button>
+                   <div class="input-group input-group-sm flex-grow-1" style="min-width: 250px;">
+                      <input type="number" class="form-control" placeholder="0–20" min="0" max="20" id="grade-${sub.submission_id}" value="${gradeVal}" style="max-width: 80px;">
+                      <input type="text" class="form-control" placeholder="Комментарий…" id="cmt-${sub.submission_id}" value="${commentVal}">
+                      <button class="btn btn-primary" onclick="grade(${sub.submission_id})"><i class="bi bi-check2"></i></button>
+                    </div>
+                </div>`;
+            } else {
+                 // Provide grading inputs even if not submitted, allow grading '0' maybe?
+                 // Or hide them? Let's hide them for now.
+                 extra = `<div class="small text-muted mt-2">Работа не сдана.</div>`;
             }
-        });
-     }
 
-     async function loadApprovals() {
-         const pendingUsersDiv = document.getElementById('pendingUsersList');
-         const pendingChangesDiv = document.getElementById('pendingGroupChangesList');
-         const pendingNameChangesDiv = document.getElementById('pendingNameChangesList');
-         pendingUsersDiv.innerHTML = '<div class="loading">...</div>';
-         pendingChangesDiv.innerHTML = '<div class="loading">...</div>';
-         pendingNameChangesDiv.innerHTML = '<div class="loading">...</div>';
+            list.insertAdjacentHTML('beforeend', `
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <strong>${s.last_name} ${s.first_name}</strong>
+                    <div class="small muted">ID:${s.user_id}</div>
+                  </div>
+                  <div class="text-end">${statusHTML}</div>
+                </div>
+                ${extra}
+              </div>
+            `);
+          }
+      }
 
-         const [pendingUsers, pendingGroups, pendingNames] = await Promise.all([
-              apiRequest('/users?approved=false'),
-              apiRequest('/group_changes/pending'),
-              apiRequest('/name_changes/pending') // Need this API endpoint
-         ]);
+      stats.innerHTML =
+        `<strong>Статистика:</strong> Всего: <strong>${students.length}</strong> | Сдано: <strong>${submitted}</strong> | Не сдано: <strong>${students.length-submitted}</strong> | Оценено: <strong>${graded}</strong> | Опоздания: <strong>${late}</strong>`;
+    }
 
-         let totalPending = 0;
+    async function toggleAccept(){
+        const btn = el('btnToggleAccept');
+        const id = btn.dataset.id;
+        if (!id) return;
+        const currentStatus = btn.dataset.currentStatus === 'open'; // true if open
+        const newState = !currentStatus; // We want to set it to the opposite
 
-         if (pendingUsers) {
-             totalPending += pendingUsers.length;
-             pendingUsersDiv.innerHTML = pendingUsers.length > 0 ? pendingUsers.map(u => `
-                 <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-                     <div class="me-2 mb-1"><strong>${u.first_name} ${u.last_name}</strong><br><small>${u.group_name || 'Без гр.'}</small></div>
-                     <div><button class="btn btn-sm btn-success me-1" onclick="approveUser(${u.user_id}, true, 'student')">Стд.</button><button class="btn btn-sm btn-primary me-1" onclick="approveUser(${u.user_id}, true, 'teacher')">Преп.</button><button class="btn btn-sm btn-danger" onclick="rejectUser(${u.user_id})">X</button></div>
-                 </div>`).join('') : '<div class="list-group-item">Новых нет.</div>';
-         } else pendingUsersDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
+        btn.disabled = true; // Prevent double clicks
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
-         if (pendingGroups) {
-              totalPending += pendingGroups.length;
-              pendingChangesDiv.innerHTML = pendingGroups.length > 0 ? pendingGroups.map(c => `
-                  <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-                     <div class="me-2 mb-1"><strong>${c.first_name} ${c.last_name}</strong><br><small>${c.current_group_name || 'Без гр.'} → ${c.pending_group_name}</small></div>
-                     <div><button class="btn btn-sm btn-success me-1" onclick="approveGroupChange(${c.user_id})">Да</button><button class="btn btn-sm btn-danger" onclick="rejectGroupChange(${c.user_id})">Нет</button></div>
-                 </div>`).join('') : '<div class="list-group-item">Запросов смены группы нет.</div>';
-         } else pendingChangesDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
+        const res = await api(`/assignments/${id}/toggle_submission`,'POST',{ accept: newState });
 
-         if (pendingNames) {
-              totalPending += pendingNames.length;
-              pendingNameChangesDiv.innerHTML = pendingNames.length > 0 ? pendingNames.map(n => `
-                  <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-                     <div class="me-2 mb-1"><strong>${n.current_first_name} ${n.current_last_name}</strong><br><small>→ ${n.pending_first_name} ${n.pending_last_name}</small></div>
-                     <div><button class="btn btn-sm btn-success me-1" onclick="approveNameChange(${n.user_id})">Да</button><button class="btn btn-sm btn-danger" onclick="rejectNameChange(${n.user_id})">Нет</button></div>
-                 </div>`).join('') : '<div class="list-group-item">Запросов смены имени нет.</div>';
-         } else pendingNameChangesDiv.innerHTML = '<div class="list-group-item text-danger">Ошибка.</div>';
+        btn.disabled = false; // Re-enable
+        btn.innerHTML = originalText;
+
+        if (res){
+            const newStatusText = res.accepting_submissions ? '✅ Приём открыт' : '❌ Приём закрыт';
+            el('acceptState').textContent = newStatusText;
+            btn.dataset.currentStatus = res.accepting_submissions ? 'open' : 'closed';
+            // Also update the assignments list if visible
+            loadAssignments();
+            haptic('success');
+        } else {
+            tg.showAlert('❌ Не удалось изменить статус приема работ.'); // Show error if API fails
+            haptic('error');
+        }
+    }
 
 
-         const badge = document.getElementById('approvalBadge');
-         if (totalPending > 0) { badge.textContent = totalPending; badge.style.display = 'inline-block'; }
-         else { badge.style.display = 'none'; }
-     }
+    async function resendSubmission(submissionId){
+      const ok = await api(`/submissions/${submissionId}/resend_to_admin`, 'POST');
+      if (ok){ tg.showAlert('📎 Работа отправлена вам в чат'); haptic('success'); }
+       else { tg.showAlert('❌ Не удалось переслать работу. Возможно, файл недоступен.'); haptic('error');}
+    }
 
-     async function approveUser(userId, status, role = null) {
-         const approveResult = await apiRequest(`/users/${userId}/approve`, 'PATCH', { approved: status });
-         let roleResult = true;
-         if (approveResult && role) { roleResult = await apiRequest(`/users/${userId}/role`, 'PATCH', { role: role }); }
-         if (approveResult && roleResult) { loadApprovals(); tg.showAlert(`Статус изменен.`); }
-         else { tg.showAlert('Ошибка.'); }
-     }
-     async function rejectUser(userId) { await approveUser(userId, false); }
-     async function approveGroupChange(userId) { if (await apiRequest(`/group_changes/${userId}/approve`, 'POST')) loadApprovals(); }
-     async function rejectGroupChange(userId) { if (await apiRequest(`/group_changes/${userId}/reject`, 'POST')) loadApprovals(); }
-     async function approveNameChange(userId) { if (await apiRequest(`/name_changes/${userId}/approve`, 'POST')) loadApprovals(); }
-     async function rejectNameChange(userId) { if (await apiRequest(`/name_changes/${userId}/reject`, 'POST')) loadApprovals(); }
+    async function grade(submissionId){
+        const gradeInput = el(`grade-${submissionId}`);
+        const commentInput = el(`cmt-${submissionId}`);
+        const g = gradeInput.value;
+        const c = commentInput.value.trim() || null;
+        const num = g==='' ? null : Number(g); // Allow empty string for null grade
 
-     function handleTabChange(targetId) {
-         const requiresGroup = ['#attendance', '#assignments', '#submissions', '#users'];
-         if (requiresGroup.includes(targetId) && !currentGroupId) {
-             document.querySelector(targetId).innerHTML = '<div class="alert alert-warning">Выберите группу.</div>'; return;
-         }
-         switch(targetId) {
-             case '#attendance': loadAttendance(); break;
-             case '#assignments': loadAssignmentsForGroup(currentGroupId); break;
-             case '#submissions': loadAssignmentsForGroup(currentGroupId); break; // Need assignments for select
-             case '#qa': loadQuestions(false); break;
-             case '#users': loadStudentsForGroup(currentGroupId); break;
-             case '#approvals': loadApprovals(); break;
-             case '#groups': loadGroupsList(); break;
-         }
-     }
+        if (num!=null && (num<0 || num>20 || !Number.isInteger(num))){
+             tg.showAlert('Оценка должна быть целым числом от 0 до 20, или оставьте поле пустым.');
+             gradeInput.focus();
+             return;
+        }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        tg.ready(); tg.expand();
-        tg.setHeaderColor(tg.themeParams.secondary_bg_color || '#efefef');
-        const styles = document.documentElement.style;
-        styles.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
-        styles.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
-        styles.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
-        styles.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#007bff');
-        styles.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#007bff');
-        styles.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-        styles.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f8f9fa');
+        // Disable inputs during save
+        gradeInput.disabled = true; commentInput.disabled = true;
+        const button = gradeInput.closest('.input-group').querySelector('button');
+        const originalButtonHtml = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        button.disabled = true;
 
-        document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
-        loadInitialData();
-        document.getElementById('adminTab')?.addEventListener('shown.bs.tab', e => handleTabChange(e.target.getAttribute('data-bs-target')));
-    });
-</script>
+        const ok = await api(`/submissions/${submissionId}/grade`, 'PATCH', { grade:num, comment:c });
 
+        // Re-enable inputs
+        gradeInput.disabled = false; commentInput.disabled = false;
+        button.innerHTML = originalButtonHtml;
+        button.disabled = false;
+
+        if (ok){
+            haptic('success');
+            // Update stats immediately might be complex, reload is easier
+            await loadSubmissions();
+        } else {
+             tg.showAlert('❌ Не удалось сохранить оценку.');
+             haptic('error');
+        }
+    }
+
+
+    // ============== Q&A ==============
+    async function loadQuestions(all){
+      const list = el('qaList');
+      list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i> Загрузка…</div>';
+      const endpoint = all ? '/questions?answered=all' : '/questions?answered=false';
+      const arr = await api(endpoint);
+      list.innerHTML = '';
+      if (!arr || !arr.length){
+        list.innerHTML = `<div class="list-group-item muted text-center py-4"><i class="bi bi-inbox"></i> ${all?'Вопросов нет':'Нет неотвеченных'}</div>`;
+        return;
+      }
+      for (const q of arr){
+        const answered = !!q.answer_text;
+        // Escape potentially harmful HTML in user-generated text
+        const safeQuestion = q.question_text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeAnswer = answered ? q.answer_text.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+        const safeStudentName = `${q.student_last_name||''} ${q.student_first_name||''}`.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeGroupName = (q.group_name||'—').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeAnswererName = (q.answerer_name||'—').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        list.insertAdjacentHTML('beforeend', `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong>${safeStudentName}</strong>
+                <span class="badge badge-soft">${safeGroupName}</span>
+              </div>
+              <div class="small muted"><i class="bi bi-calendar-event"></i> ${fmtDT(q.asked_at)}</div>
+            </div>
+            <div class="mt-2">${safeQuestion}</div>
+            ${answered ? `
+              <hr class="my-3">
+              <div>
+                <div class="small muted mb-2"><strong>Ответ (${safeAnswererName})</strong> от ${fmtDT(q.answered_at)}</div>
+                <div>${safeAnswer}</div>
+              </div>
+            ` : `
+              <div class="mt-3 d-flex gap-2">
+                <input class="form-control form-control-sm" id="ans-${q.question_id}" placeholder="Ваш ответ…">
+                <button class="btn btn-sm btn-primary" onclick="answer(${q.question_id}, ${q.student_telegram_id||'null'}, \`${btoa(encodeURIComponent(q.question_text||''))}\`)">
+                  <i class="bi bi-reply"></i> Ответить
+                </button>
+              </div>
+            `}
+          </div>
+        `);
+      }
+    }
+
+    async function answer(id, to, questionB64){
+        const input = el(`ans-${id}`);
+        const text = input.value.trim();
+        if (!text) { input.focus(); return; }
+
+        const button = input.nextElementSibling; // Get the button next to the input
+        const originalButtonHtml = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        button.disabled = true; input.disabled = true;
+
+        const ok = await api(`/questions/${id}/answer`, 'POST', { answer_text:text });
+
+        button.innerHTML = originalButtonHtml;
+        button.disabled = false; input.disabled = false;
+
+        if (ok){
+            tg.showAlert('✅ Ответ отправлен');
+            haptic('success');
+            // No tg.sendData needed, backend queues it
+            loadQuestions(false); // Reload unanswered
+        } else {
+             tg.showAlert('❌ Не удалось отправить ответ.');
+             haptic('error');
+        }
+    }
+
+
+    // ============== USERS ==============
+    async function loadUsers(){
+      const box = el('userList');
+      if (!currentGroupId){
+        box.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-info-circle"></i> Выберите группу</div>'; return;
+      }
+      box.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i> Загрузка студентов…</div>';
+      // Load only approved students for the current group
+      const arr = await api(`/users?role=student&group_id=${currentGroupId}&approved=true`);
+      box.innerHTML = '';
+      if (!arr || !arr.length){ box.innerHTML = '<div class="list-group-item muted text-center py-4">В этой группе нет подтвержденных студентов</div>'; return; }
+      for (const s of arr){
+        const safeName = `${s.last_name} ${s.first_name}`.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        box.insertAdjacentHTML('beforeend', `
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>${safeName}</strong>
+              <div class="small muted">ID:${s.user_id} (@${s.username || 'no username'})</div>
+              <div class="small muted">TG ID: ${s.telegram_id}</div>
+            </div>
+            <button class="btn btn-outline-danger btn-sm" onclick="removeFromGroup(${s.user_id}, '${safeName.replace(/'/g, "\\'")}')">
+              <i class="bi bi-person-dash"></i> Убрать из группы
+            </button>
+          </div>
+        `);
+      }
+    }
+
+    async function removeFromGroup(uid, name){
+      if (!confirm(`Убрать студента ${name} из текущей группы? Студент останется в системе, но без группы.`)) return;
+      // PATCH to set group_id to null
+      const ok = await api(`/users/${uid}/group`,'PATCH',{ group_id: null });
+      if (ok){
+          tg.showAlert(`Студент ${name} убран из группы.`);
+          haptic('success');
+          await loadUsers(); // Refresh list
+          await saRefresh(); // Refresh activity tab if needed
+       } else {
+            tg.showAlert('❌ Не удалось убрать студента из группы.');
+            haptic('error');
+       }
+    }
+
+    // ============== APPROVALS ==============
+    async function loadApprovals(){
+        const uBox = el('approveUsers');
+        const gBox = el('approveGroups');
+        const nBox = el('approveNames');
+        uBox.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i></div>';
+        gBox.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i></div>';
+        nBox.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i></div>';
+
+
+        const [pendingUsers, pendingGroups, pendingNames] = await Promise.all([
+            api('/users?approved=false&role=pending'), // Fetch only pending users
+            api('/group_changes/pending'),
+            api('/name_changes/pending')
+        ]);
+
+        const badge = el('badgeApprovals');
+        const total = (pendingUsers?.length||0) + (pendingGroups?.length||0) + (pendingNames?.length||0);
+        if (total>0){ badge.textContent = total; badge.classList.remove('d-none'); } else { badge.classList.add('d-none'); }
+
+        // users
+        uBox.innerHTML = '';
+        if (!pendingUsers || !pendingUsers.length) uBox.innerHTML = '<div class="list-group-item muted text-center py-4">Нет новых заявок на регистрацию</div>';
+        else {
+             pendingUsers.sort((a, b) => (a.registration_date || '').localeCompare(b.registration_date || '')); // Sort by registration time
+             for (const u of pendingUsers){
+                const safeName = `${u.first_name||''} ${u.last_name||''}`.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const safeGroup = (u.group_name||'Не указана').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                uBox.insertAdjacentHTML('beforeend', `
+                  <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <div>
+                        <strong>${safeName}</strong> (@${u.username || 'no username'})
+                        <div class="small muted">Группа при рег.: ${safeGroup}</div>
+                        <div class="small muted">TG ID: ${u.telegram_id} | User ID: ${u.user_id}</div>
+                      </div>
+                      <div class="small muted text-end">${fmtDT(u.registration_date)}</div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                      <button class="btn btn-success btn-sm" onclick="approveUser(${u.user_id}, 'student')"><i class="bi bi-person-check"></i> Одобрить как Студента</button>
+                       <button class="btn btn-outline-danger btn-sm" onclick="rejectUser(${u.user_id})"><i class="bi bi-x-lg"></i> Отклонить</button>
+                    </div>
+                  </div>
+                `);
+            }
+        }
+
+
+      // group changes
+      gBox.innerHTML = '';
+      if (!pendingGroups || !pendingGroups.length) gBox.innerHTML = '<div class="list-group-item muted text-center py-4">Нет запросов на смену группы</div>';
+      else {
+          pendingGroups.sort((a, b) => (a.group_change_requested_at || '').localeCompare(b.group_change_requested_at || ''));
+          for (const c of pendingGroups){
+                const safeName = `${c.first_name||''} ${c.last_name||''}`.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const safeCurrent = (c.current_group_name||'Без группы').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const safePending = (c.pending_group_name||'???').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                gBox.insertAdjacentHTML('beforeend', `
+                  <div class="list-group-item">
+                    <div class="mb-2">
+                      <strong>${safeName}</strong> (ID: ${c.user_id})
+                      <div class="small mt-1"><i class="bi bi-arrow-right"></i> Из: ${safeCurrent} <i class="bi bi-arrow-right"></i> В: <strong>${safePending}</strong></div>
+                      <div class="small muted">Запрос от: ${fmtDT(c.group_change_requested_at)}</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-success btn-sm" onclick="handleApprovalAction('/group_changes/${c.user_id}/approve', 'Смена группы одобрена')"><i class="bi bi-check2"></i> Одобрить</button>
+                      <button class="btn btn-outline-danger btn-sm" onclick="handleApprovalAction('/group_changes/${c.user_id}/reject', 'Смена группы отклонена')"><i class="bi bi-x-lg"></i> Отклонить</button>
+                    </div>
+                  </div>
+                `);
+          }
+      }
+
+      // name changes
+      nBox.innerHTML = '';
+      if (!pendingNames || !pendingNames.length) nBox.innerHTML = '<div class="list-group-item muted text-center py-4">Нет запросов на смену имени</div>';
+      else {
+          pendingNames.sort((a, b) => (a.name_change_requested_at || '').localeCompare(b.name_change_requested_at || ''));
+          for (const n of pendingNames){
+            const safeCurrent = `${n.current_first_name||''} ${n.current_last_name||''}`.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const safePending = `${n.pending_first_name||''} ${n.pending_last_name||''}`.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            nBox.insertAdjacentHTML('beforeend', `
+              <div class="list-group-item">
+                <div class="mb-2">
+                  <strong>${safeCurrent}</strong> (ID: ${n.user_id})
+                  <div class="small mt-1"><i class="bi bi-arrow-right"></i> Новое имя: <strong>${safePending}</strong></div>
+                   <div class="small muted">Запрос от: ${fmtDT(n.name_change_requested_at)}</div>
+                </div>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-success btn-sm" onclick="handleApprovalAction('/name_changes/${n.user_id}/approve', 'Смена имени одобрена')"><i class="bi bi-check2"></i> Одобрить</button>
+                  <button class="btn btn-outline-danger btn-sm" onclick="handleApprovalAction('/name_changes/${n.user_id}/reject', 'Смена имени отклонена')"><i class="bi bi-x-lg"></i> Отклонить</button>
+                </div>
+              </div>
+            `);
+          }
+      }
+    }
+
+    // Generic handler for approve/reject buttons
+    async function handleApprovalAction(path, successMessage){
+        // Add loading state to button maybe?
+        const ok = await api(path,'POST',{}); // POST with empty body
+        if (ok){
+            tg.showAlert(`✅ ${successMessage}`);
+            haptic('success');
+            await loadApprovals(); // Refresh all approval lists
+        } else {
+             tg.showAlert(`❌ Не удалось выполнить действие.`);
+             haptic('error');
+        }
+    }
+
+
+    async function approveUser(uid, role){
+        // Step 1: Set the role
+        const roleOk = await api(`/users/${uid}/role`,'PATCH',{ role });
+        if (!roleOk) {
+             tg.showAlert(`❌ Не удалось установить роль ${role}.`);
+             haptic('error');
+             return;
+        }
+        // Step 2: Approve the user
+        const approveOk = await api(`/users/${uid}/approve`,'PATCH',{ approved:true });
+        if (approveOk){
+             tg.showAlert(`✅ Пользователь одобрен как ${role}.`);
+             haptic('success');
+             await loadApprovals(); // Refresh lists
+        } else {
+             tg.showAlert('❌ Не удалось одобрить пользователя (роль была установлена).');
+             haptic('error');
+        }
+    }
+
+
+    async function rejectUser(uid){
+        // Instead of just setting approved=false, maybe delete the user or mark as rejected?
+        // For now, let's just update the status as before, but maybe DELETE is better.
+        // Let's try DELETE for pending users
+        if (!confirm('Отклонить заявку этого пользователя? Он будет удален.')) return;
+
+        const ok = await api(`/users/${uid}`, 'DELETE'); // Assuming you add a DELETE /users/{id} endpoint
+        if (ok) {
+             tg.showAlert('✅ Заявка отклонена, пользователь удален.');
+             haptic('success');
+             await loadApprovals();
+        } else {
+            // Fallback if DELETE fails or is not implemented
+            const rejectOk = await api(`/users/${uid}/approve`,'PATCH',{ approved:false });
+             if (rejectOk){
+                 tg.showAlert('✅ Заявка отклонена (статус изменен).');
+                 haptic('success');
+                 await loadApprovals();
+             } else {
+                 tg.showAlert('❌ Не удалось отклонить заявку.');
+                 haptic('error');
+             }
+        }
+    }
+
+
+    // ============== GROUPS MGMT ==============
+    async function renderGroups(){
+      const list = el('groupsList');
+      list.innerHTML = '<div class="list-group-item muted text-center py-4"><i class="bi bi-hourglass-split"></i> Загрузка групп…</div>';
+      const arr = await api('/groups');
+      list.innerHTML = '';
+      if (!arr || !arr.length){ list.innerHTML = '<div class="list-group-item muted text-center py-4">Групп пока нет. Добавьте первую!</div>'; return; }
+      for (const g of arr){
+        const safeName = (g.name||'').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        list.insertAdjacentHTML('beforeend', `
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <strong>${safeName}</strong>
+            <span>(ID: ${g.group_id})</span>
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteGroup(${g.group_id}, '${safeName.replace(/'/g, "\\'")}')">
+              <i class="bi bi-trash"></i> Удалить
+            </button>
+          </div>
+        `);
+      }
+    }
+
+    async function addGroup(){
+      const inp = el('newGroupName');
+      const name = (inp.value||'').trim();
+      if (!name) { inp.focus(); return; }
+      inp.disabled = true; // Prevent double submit
+      const btn = el('btnAddGroup');
+      const originalBtnHtml = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      btn.disabled = true;
+
+      const ok = await api('/groups','POST',{ name });
+
+      inp.disabled = false; btn.disabled = false; btn.innerHTML = originalBtnHtml; // Restore button
+
+      if (ok){
+          inp.value='';
+          await loadGroups(); // Reload main dropdown
+          await renderGroups(); // Reload list in this tab
+          haptic('success');
+      } else {
+           // Error handled by api function, just re-enable input
+           inp.focus();
+      }
+    }
+
+    async function deleteGroup(id, name){
+      if (!confirm(`Удалить группу "${name}" (ID: ${id})? Это действие необратимо и удалит связанные задания/материалы (каскадно). Студенты будут откреплены от группы.`)) return;
+      const ok = await api(`/groups/${id}`,'DELETE');
+      if (ok){
+        if (String(currentGroupId)===String(id)){
+          currentGroupId=''; localStorage.removeItem('currentGroupId');
+          el('groupSelect').value='';
+          // Also update other group selectors
+          el('saGroupSelect').value = '';
+        }
+        await loadGroups(); await renderGroups(); haptic('success');
+        tg.showAlert(`Группа "${name}" удалена.`);
+      } else {
+            tg.showAlert('❌ Не удалось удалить группу.'); haptic('error');
+      }
+    }
+  </script>
 </body>
 </html>
