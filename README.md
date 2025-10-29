@@ -1,61 +1,56 @@
-# Personal Finance Bot & WebApp
+# Tutor's Bot & Admin Panel
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/melvud/vsilant-bot)
 [![Platform](https://img.shields.io/badge/platform-Telegram%20%7C%20Web-blue)](https://telegram.org/)
 [![Python](https://img.shields.io/badge/python-3.12-blueviolet.svg)](https://www.python.org/)
 [![Tech](https://img.shields.io/badge/tech-Aiogram%20%7C%20AIOHTTP%20%7C%20PostgreSQL-orange.svg)](https://aiogram.dev/)
 
-A high-performance, asynchronous Telegram bot for personal expense tracking, fully integrated with a powerful **Telegram Mini App (TMA)** dashboard. This application provides users with two convenient ways to manage their finances: a simple command-based interface via the bot and a rich, visual dashboard via a secure WebApp.
+A high-performance, asynchronous Telegram bot designed as a **personal assistant for tutors, teachers, and professors**. This application helps manage the educational process by providing two powerful interfaces: a simple `aiogram` bot for quick data entry (like adding grades or tasks) and a secure, comprehensive **Telegram Mini App (TMA)** dashboard for visual management and statistics.
 
-The backend is built entirely in Python using an `aiogram` bot for user interaction and an `aiohttp` web server to provide a secure REST API for the dashboard. All data is stored in a robust PostgreSQL database.
+The backend is built entirely in Python using `aiogram` for bot interactions and an `aiohttp` web server to provide a secure REST API for the admin dashboard. All data (students, groups, grades) is stored in a robust PostgreSQL database.
+
+
 
 ---
 
 ## ✨ Core Features
 
-This project is a complete, dual-interface financial tracker.
+This project provides a complete, dual-interface system for educational management.
 
-### 1. Telegram Bot Interface (`client.py`)
+### 1. Bot Interface (For the Tutor)
 
-* **Quick Add Transactions:** Users can quickly add expenses using a simple command (`/add 100 food`) or a guided **FSM (Finite State Machine)** flow that asks for amount, category, and description.
-* **Text-Based Statistics:** A `/stats` command that instantly generates and displays a text report of spending for the week, month, and year.
-* **Category Management:** Simple commands (`/add_category`, `/del_category`) to manage custom spending categories.
-* **Transaction Deletion:** An FSM-based flow (`/del`) to delete recent transactions.
-* **Full Data Export:** A `/export` command that queries the entire transaction history for the user and sends it back as a `.csv` file.
+* **Quick Grade Entry** 
+* **Guided FSM Flow** 
+* **Instant Text Stats**
+* **Group Management** 
+* **Full Data Export** 
 
-### 2. WebApp Dashboard (`webapp.html` & `api.py`)
+### 2. WebApp Dashboard (Telegram Mini App)
 
-This is the core strength of the application—a full-featured dashboard that runs directly inside Telegram.
+The core of the application: a rich, visual dashboard for the tutor that runs directly inside Telegram.
 
-* **Secure TMA Authentication:** The WebApp is securely loaded *only* for the bot's owner. All API requests are authenticated using Telegram's `initData` hashing mechanism to ensure data privacy and security.
-* **Visual Dashboard Tab:**
-    * **Charts:** Renders beautiful, interactive charts (using Chart.js) for "Spending by Category" and "Daily Spending".
-    * **Stat Cards:** Displays key metrics like "Total Spent (Month)", "Average Daily (Month)", and "Most Expensive Category".
-* **Full Transaction Management:**
-    * **Paginated List:** A "Transactions" tab that fetches and displays a paginated list of all recent transactions.
-    * **Add Transaction Modal:** A clean modal form to add new transactions with date, category, amount, and description.
-    * **Delete Transaction:** Users can delete any transaction directly from the list with a single tap.
-* **Category Management UI:** A dedicated "Categories" tab to view all existing categories, add new ones, or delete them.
-* **CSV Export:** A button to trigger the `/api/export-csv` endpoint and download the full transaction history.
-
-### 3. Backend & Architecture
-
-* **Asynchronous Stack:** Built from the ground up with `asyncio`, using `aiogram` for the bot and `aiohttp` for the web server, enabling high concurrency.
-* **Robust Database:** Uses **PostgreSQL** with the `asyncpg` driver for all data storage. The schema (`schema.sql`) is normalized, linking transactions to users and categories.
-* **Integrated Entrypoint:** The entire application (bot polling and web server) is launched from a single `backend.py` script.
-* **Containerized:** Includes `Dockerfile` and `docker-compose.yml` for easy, reproducible deployment.
+* **Secure TMA Authentication:** The dashboard is accessible *only* to the admin/tutor. All API requests are authenticated on the backend using Telegram's `initData` hashing verification, ensuring all student data remains private and secure.
+* **Visual Statistics:**
+    * **Interactive Charts:** Uses **Chart.js** to render beautiful charts for "Performance by Group" and "Daily Activity / Grades".
+    * **Stat Cards:** Displays key metrics like "Average Grade (Month)", "Total Submissions (Month)", and "Top Performing Group".
+* **Full Grade/Task Management:**
+    * **Paginated List:** A "Transactions" (Submissions) tab displays a paginated list of all recent grades and tasks.
+    * **Add & Delete:** A clean modal form allows for adding new entries with a date picker, and any entry can be deleted with a single tap.
+* **Student Group Management:** A dedicated "Categories" (Groups) tab to visually manage all student groups, add new ones, or delete existing ones.
+* **CSV Export:** A one-click button to trigger the `/api/export-csv` endpoint and download the full `.csv` report.
 
 ---
 
 ## 🛠️ Technology Stack & Architecture
 
-This project demonstrates a clean, modern, and scalable Python backend architecture.
+This project is built with a modern, scalable, and fully asynchronous Python stack.
 
 * **Bot Framework:** **Aiogram 3.x**
 * **Web Server & API:** **AIOHTTP** & `aiohttp-cors`
 * **Database:** **PostgreSQL** (with `asyncpg` driver)
-* **Frontend (TMA):** **Telegram Mini App** (Vanilla JavaScript, HTML5, CSS3)
-* **Charting:** **Chart.js** (loaded via CDN)
+* **Asynchronous:** Fully built on **asyncio** for high throughput.
+* **Admin Frontend:** **Telegram Mini App** (HTML, CSS, vanilla JavaScript)
+* **Charting:** **Chart.js**
 * **State Management:** **Aiogram FSM** (Finite State Machine)
 * **Deployment:** Docker, Docker Compose
 
